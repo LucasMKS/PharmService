@@ -1,121 +1,262 @@
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import Cookies from "js-cookie";
+"use client";
+import React, { useState, useEffect, useCallback } from "react";
+import PharmService from "../services/PharmService";
+import PharmacyModal from "./PharmacyModal";
+import { debounce } from "lodash";
 
-export default function teste() {
-  const [user, setUser] = useState(null);
-  const router = useRouter();
+export default function TableContent() {
+  const [medications, setMedications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedPharmacy, setSelectedPharmacy] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
-    // const token = Cookies.get("token");
-    // const roles = JSON.parse(Cookies.get("roles") || "[]");
-    // const name = Cookies.get("name");
+    const fetchMedications = async () => {
+      try {
+        const response = await PharmService.getAllMedicines();
+        setMedications(response);
+        setLoading(false);
+      } catch (err) {
+        setError("Falha ao buscar medicamentos");
+        setLoading(false);
+      }
+    };
 
-    const token = "das21das1d23as12d3as13das1";
-    const roles = "USER";
-    const name = "Lucas";
+    fetchMedications();
+  }, []);
 
-    if (!token) {
-      router.push("/auth");
-    } else {
-      setUser({ name, roles });
+  const handleSearch = useCallback(
+    debounce(async (term) => {
+      if (term.trim() === "") {
+        setIsSearching(false);
+        const allMedicines = await PharmService.getAllMedicines();
+        setMedications(allMedicines);
+        return;
+      }
+
+      setIsSearching(true);
+      try {
+        const results = await PharmService.getMedicineByName(term);
+        setMedications(results);
+      } catch (error) {
+        console.error("Error searching for medicine:", error);
+        setError("Falha ao buscar medicamento");
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300),
+    []
+  );
+
+  useEffect(() => {
+    handleSearch(searchTerm);
+  }, [searchTerm, handleSearch]);
+
+  const handlePharmacyClick = (pharmacy) => {
+    setSelectedPharmacy(pharmacy);
+  };
+
+  const handleCloseModal = () => {
+    setSelectedPharmacy(null);
+  };
+
+  const handleEdit = (medicineId) => {
+    // Implementar lógica de edição
+    console.log("Editar medicamento", medicineId);
+  };
+
+  const handleDelete = async (medicineId) => {
+    if (window.confirm("Tem certeza que deseja excluir este medicamento?")) {
+      try {
+        await PharmService.deleteMedicine(medicineId);
+        setMedications(medications.filter((med) => med.id !== medicineId));
+      } catch (error) {
+        console.error("Erro ao excluir medicamento:", error);
+        alert("Não foi possível excluir o medicamento. Tente novamente.");
+      }
     }
-  }, [router]);
+  };
 
-  if (!user) {
-    return <div>Carregando...</div>;
-  }
+  if (loading) return <div>Carregando...</div>;
+  if (error) return <div>Erro: {error}</div>;
 
   return (
-    <div className="h-[200vh] w-full bg-base-200">
-      <div className="navbar bg-base-100 shadow-lg">
-        <div className="flex-1">
-          <a className="btn btn-ghost normal-case text-xl">
-            PharmStock Dashboard
-          </a>
-        </div>
-        <div className="flex-none">
-          <ul className="menu menu-horizontal px-1">
-            <li>
-              <a>Perfil</a>
-            </li>
-            <li>
-              <details>
-                <summary>Opções</summary>
-                <ul className="p-2 bg-base-100">
-                  <li>
-                    <a>Configurações</a>
-                  </li>
-                  <li>
-                    <a
-                      onClick={() => {
-                        Cookies.remove("token");
-                        Cookies.remove("email");
-                        Cookies.remove("roles");
-                        Cookies.remove("name");
-                        router.push("/auth");
-                      }}
+    <div className="flex flex-col">
+      <div className="-m-1.5 overflow-x-auto">
+        <div className="p-1.5 min-w-full inline-block align-middle">
+          <div className="border rounded-lg divide-y divide-gray-200 dark:border-neutral-700 dark:divide-neutral-700">
+            <div className="py-3 px-4">
+              <div className="relative max-w-xs">
+                <label className="sr-only">Search</label>
+                <input
+                  type="text"
+                  name="hs-table-with-pagination-search"
+                  id="hs-table-with-pagination-search"
+                  className="py-2 px-3 ps-9 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
+                  placeholder="Buscar medicamentos"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                <div className="absolute inset-y-0 start-0 flex items-center pointer-events-none ps-3">
+                  <svg
+                    className="size-4 text-gray-400 dark:text-neutral-500"
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.3-4.3"></path>
+                  </svg>
+                </div>
+                {isSearching && (
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                    <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-blue-500"></div>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="overflow-hidden">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-neutral-700">
+                <thead className="bg-gray-50 dark:bg-neutral-700">
+                  <tr>
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-neutral-500"
                     >
-                      Sair
-                    </a>
-                  </li>
-                </ul>
-              </details>
-            </li>
-          </ul>
-        </div>
-      </div>
-
-      <div className="p-6">
-        <h1 className="text-3xl font-bold mb-6">
-          Bem-vindo ao Dashboard, {user.name}
-        </h1>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {user.roles.includes("ADMIN") && (
-            <div className="card bg-primary text-primary-content">
-              <div className="card-body">
-                <h2 className="card-title">Administração</h2>
-                <p>Gerencie usuários e permissões do sistema.</p>
-                <div className="card-actions justify-end">
-                  <button className="btn">Acessar</button>
-                </div>
-              </div>
+                      Nome do Medicamento
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-neutral-500"
+                    >
+                      Quantidade
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-neutral-500"
+                    >
+                      Última Atualização
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-neutral-500"
+                    >
+                      Farmácia
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-end text-xs font-medium text-gray-500 uppercase dark:text-neutral-500"
+                    >
+                      Ações
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 dark:divide-neutral-700">
+                  {medications.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan="5"
+                        className="px-6 py-4 text-center text-gray-500 dark:text-gray-400"
+                      >
+                        Nenhum medicamento encontrado
+                      </td>
+                    </tr>
+                  ) : (
+                    medications.map((medication) => (
+                      <tr key={medication.id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200">
+                          {medication.medicineName}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-neutral-200">
+                          {medication.quantity}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-neutral-200">
+                          {new Date(medication.updatedOn).toLocaleString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-neutral-200">
+                          <button
+                            onClick={() =>
+                              handlePharmacyClick(medication.pharmacy)
+                            }
+                            className="text-blue-600 hover:text-blue-800 dark:text-blue-500 dark:hover:text-blue-400"
+                          >
+                            {medication.pharmacy.name}
+                          </button>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-end text-sm font-medium">
+                          <button
+                            onClick={() => handleEdit(medication.id)}
+                            className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-600 mr-2"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => handleDelete(medication.id)}
+                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-600"
+                          >
+                            Excluir
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+              {renderLoadingOrError()}
             </div>
-          )}
-          {(user.roles.includes("farmacia") ||
-            user.roles.includes("ADMIN")) && (
-            <div className="card bg-secondary text-secondary-content">
-              <div className="card-body">
-                <h2 className="card-title">Gestão de Estoque</h2>
-                <p>Controle o estoque de medicamentos da farmácia.</p>
-                <div className="card-actions justify-end">
-                  <button className="btn">Acessar</button>
-                </div>
-              </div>
-            </div>
-          )}
-          {(user.roles.includes("gerente") || user.roles.includes("ADMIN")) && (
-            <div className="card bg-accent text-accent-content">
-              <div className="card-body">
-                <h2 className="card-title">Relatórios</h2>
-                <p>Visualize relatórios e estatísticas da farmácia.</p>
-                <div className="card-actions justify-end">
-                  <button className="btn">Acessar</button>
-                </div>
-              </div>
-            </div>
-          )}
-          <div className="card bg-neutral text-neutral-content">
-            <div className="card-body">
-              <h2 className="card-title">Busca de Medicamentos</h2>
-              <p>Pesquise medicamentos disponíveis no estoque.</p>
-              <div className="card-actions justify-end">
-                <button className="btn">Acessar</button>
-              </div>
+            <div class="py-1 px-4 bg-neutral-100 dark:bg-neutral-800">
+              <nav class="flex items-center space-x-1" aria-label="Pagination">
+                <button
+                  type="button"
+                  class="p-2.5 min-w-[40px] inline-flex justify-center items-center gap-x-2 text-sm rounded-full text-gray-800 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none dark:text-white dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
+                  aria-label="Previous"
+                >
+                  <span aria-hidden="true">«</span>
+                  <span class="sr-only">Previous</span>
+                </button>
+                <button
+                  type="button"
+                  class="min-w-[40px] flex justify-center items-center text-gray-800 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 py-2.5 text-sm rounded-full disabled:opacity-50 disabled:pointer-events-none dark:text-white dark:focus:bg-neutral-700 dark:hover:bg-neutral-700"
+                  aria-current="page"
+                >
+                  1
+                </button>
+                <button
+                  type="button"
+                  class="min-w-[40px] flex justify-center items-center text-gray-800 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 py-2.5 text-sm rounded-full disabled:opacity-50 disabled:pointer-events-none dark:text-white dark:focus:bg-neutral-700 dark:hover:bg-neutral-700"
+                >
+                  2
+                </button>
+                <button
+                  type="button"
+                  class="min-w-[40px] flex justify-center items-center text-gray-800 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 py-2.5 text-sm rounded-full disabled:opacity-50 disabled:pointer-events-none dark:text-white dark:focus:bg-neutral-700 dark:hover:bg-neutral-700"
+                >
+                  3
+                </button>
+                <button
+                  type="button"
+                  class="p-2.5 min-w-[40px] inline-flex justify-center items-center gap-x-2 text-sm rounded-full text-gray-800 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none dark:text-white dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
+                  aria-label="Next"
+                >
+                  <span class="sr-only">Next</span>
+                  <span aria-hidden="true">»</span>
+                </button>
+              </nav>
             </div>
           </div>
         </div>
       </div>
+      {selectedPharmacy && (
+        <PharmacyModal pharmacy={selectedPharmacy} onClose={handleCloseModal} />
+      )}
     </div>
   );
 }

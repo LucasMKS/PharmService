@@ -1,4 +1,5 @@
 import axios from "axios";
+import Cookies from "js-cookie";
 
 const API_BASE_URL = "http://localhost:8080/api";
 
@@ -8,15 +9,31 @@ const axiosInstance = axios.create({
     "Content-Type": "application/json",
   },
 });
-// localhost:8080/api/auth/login
+
+// Interceptor para adicionar o token a todas as requisições
+axiosInstance.interceptors.request.use(
+  (config) => {
+    const token = Cookies.get("token");
+    if (token && !config.url.includes("/auth/")) {
+      config.headers["Authorization"] = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
 const PharmService = {
   // Método para fazer login
   login: async (credentials) => {
     try {
       const response = await axiosInstance.post("/auth/login", credentials);
+      // Salvar token e informações do usuário nos cookies
+      Cookies.set("token", response.data.token);
+      Cookies.set("name", response.data.name);
+      Cookies.set("roles", JSON.stringify(response.data.roles));
       return response.data;
     } catch (error) {
-      console.error("Erro ao fazer login:", error.response);
+      console.error("Erro ao fazer login:", error);
       throw error;
     }
   },
@@ -35,7 +52,7 @@ const PharmService = {
   // Método para buscar todos os medicamentos
   getAllMedicines: async () => {
     try {
-      const response = await axiosInstance.get("/medicines");
+      const response = await axiosInstance.get("/medicine/all");
       return response.data;
     } catch (error) {
       console.error("Erro ao buscar medicamentos:", error);
@@ -44,9 +61,9 @@ const PharmService = {
   },
 
   // Método para buscar um medicamento específico
-  getMedicineById: async (id) => {
+  getMedicineByName: async (medicineName) => {
     try {
-      const response = await axiosInstance.get(`/medicines/${id}`);
+      const response = await axiosInstance.get(`/medicine/${medicineName}`);
       return response.data;
     } catch (error) {
       console.error("Erro ao buscar medicamento:", error);
@@ -69,7 +86,7 @@ const PharmService = {
   updateMedicine: async (id, medicineData) => {
     try {
       const response = await axiosInstance.put(
-        `/medicines/${id}`,
+        `/medicineFarm/${id}`,
         medicineData
       );
       return response.data;
@@ -82,7 +99,7 @@ const PharmService = {
   // Método para deletar um medicamento
   deleteMedicine: async (id) => {
     try {
-      const response = await axiosInstance.delete(`/medicines/${id}`);
+      const response = await axiosInstance.delete(`/medicineFarm/delete/${id}`);
       return response.data;
     } catch (error) {
       console.error("Erro ao deletar medicamento:", error);

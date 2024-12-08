@@ -1,13 +1,121 @@
 "use client";
-import React from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import PharmService from "../services/PharmService";
+import PharmacyModal from "./PharmacyModal";
+import { debounce } from "lodash";
 
 export default function TableContent() {
+  const [medications, setMedications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedPharmacy, setSelectedPharmacy] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+  const [noResults, setNoResults] = useState(false);
+
+  useEffect(() => {
+    const fetchMedications = async () => {
+      try {
+        const response = await PharmService.getAllMedicines();
+        console.log("Resposta da API:", response);
+        setMedications(response);
+        setLoading(false);
+      } catch (err) {
+        setError("Falha ao buscar medicamentos");
+        setLoading(false);
+      }
+    };
+
+    fetchMedications();
+  }, []);
+
+  const handleSearch = useCallback(
+    debounce(async (term) => {
+      if (term.trim() === "") {
+        setIsSearching(false);
+        setNoResults(false);
+        const allMedicines = await PharmService.getAllMedicines();
+        setMedications(allMedicines);
+        return;
+      }
+
+      setIsSearching(true);
+      setNoResults(false);
+      try {
+        const results = await PharmService.getMedicineByName(term);
+        setMedications(results);
+        console.log(results);
+        // Se nenhum resultado for encontrado
+        if (results.length === 0) {
+          setNoResults(true);
+        }
+      } catch (error) {
+        console.error("Error searching for medicine:", error);
+        // setError("Falha ao buscar medicamentos");
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300),
+    []
+  );
+
+  useEffect(() => {
+    handleSearch(searchTerm);
+  }, [searchTerm, handleSearch]);
+
+  const handlePharmacyClick = (pharmacy) => {
+    setSelectedPharmacy(pharmacy);
+  };
+
+  const handleCloseModal = () => {
+    setSelectedPharmacy(null);
+  };
+
+  const handleEdit = (medicineId) => {
+    // Implementar lógica de edição
+    console.log("Editar medicamento", medicineId);
+  };
+
+  const handleDelete = async (medicineId) => {
+    if (window.confirm("Tem certeza que deseja excluir este medicamento?")) {
+      try {
+        await PharmService.deleteMedicine(medicineId);
+        setMedications(
+          medications.filter((med) => med.medicineId !== medicineId)
+        );
+      } catch (error) {
+        console.error("Erro ao excluir medicamento:", error);
+        alert("Não foi possível excluir o medicamento. Tente novamente.");
+      }
+    }
+  };
+
+  const renderLoadingOrError = () => {
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center w-full h-64 bg-neutral-500 text-white text-xl font-semibold">
+          Carregando medicamentos...
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="flex items-center justify-center w-full h-64 bg-red-500 text-white text-xl font-semibold p-4 text-center">
+          {error}
+        </div>
+      );
+    }
+
+    return null;
+  };
+
   return (
-    <div className="flex flex-col">
-      <div className="-m-1.5 overflow-x-auto">
+    <div className="bg-blue-100 dark:bg-slate-900 min-h-screen flex items-center justify-center p-6">
+      <div className="w-full max-w-6xl bg-neutral-600 dark:bg-neutral-300 rounded-lg shadow-lg overflow-hidden">
         <div className="p-1.5 min-w-full inline-block align-middle">
-          <div className="border rounded-lg divide-y divide-gray-200 dark:border-neutral-700 dark:divide-neutral-700">
-            <div className="py-3 px-4">
+          <div className="border rounded-lg divide-y dark:border-neutral-700 divide-gray-200 dark:divide-neutral-950">
+            <div className="py-3 px-4 bg-neutral-100 dark:bg-neutral-800">
               <div className="relative max-w-xs">
                 <label className="sr-only">Search</label>
                 <input
@@ -15,7 +123,9 @@ export default function TableContent() {
                   name="hs-table-with-pagination-search"
                   id="hs-table-with-pagination-search"
                   className="py-2 px-3 ps-9 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
-                  placeholder="Search for items"
+                  placeholder="Buscar medicamentos"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                 />
                 <div className="absolute inset-y-0 start-0 flex items-center pointer-events-none ps-3">
                   <svg
@@ -26,240 +136,108 @@ export default function TableContent() {
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                   >
                     <circle cx="11" cy="11" r="8"></circle>
                     <path d="m21 21-4.3-4.3"></path>
                   </svg>
                 </div>
+
+                {/* Mensagem de medicamento não encontrado */}
+                {noResults && searchTerm.trim() !== "" && (
+                  <div className="absolute right-0 top-full mt-1 text-red-600 text-sm">
+                    Medicamento não encontrado
+                  </div>
+                )}
+
+                {isSearching && (
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                    <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-blue-500"></div>
+                  </div>
+                )}
               </div>
             </div>
             <div className="overflow-hidden">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-neutral-700">
-                <thead className="bg-gray-50 dark:bg-neutral-700">
+                <thead className="bg-neutral-100 dark:bg-neutral-800">
                   <tr>
-                    <th scope="col" className="py-3 px-4 pe-0">
-                      <div className="flex items-center h-5">
-                        <input
-                          id="hs-table-pagination-checkbox-all"
-                          type="checkbox"
-                          className="border-gray-200 rounded text-blue-600 focus:ring-blue-500 dark:bg-neutral-700 dark:border-neutral-500 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
-                        />
-                        <label
-                          for="hs-table-pagination-checkbox-all"
-                          className="sr-only"
-                        >
-                          Checkbox
-                        </label>
-                      </div>
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-neutral-500"
+                    >
+                      Nome do Medicamento
                     </th>
                     <th
                       scope="col"
                       className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-neutral-500"
                     >
-                      Name
+                      Quantidade
                     </th>
                     <th
                       scope="col"
                       className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-neutral-500"
                     >
-                      Age
+                      Última Atualização
                     </th>
                     <th
                       scope="col"
                       className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-neutral-500"
                     >
-                      Address
+                      Farmácia
                     </th>
                     <th
                       scope="col"
                       className="px-6 py-3 text-end text-xs font-medium text-gray-500 uppercase dark:text-neutral-500"
                     >
-                      Action
+                      Ações
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-neutral-700">
-                  <tr>
-                    <td className="py-3 ps-4">
-                      <div className="flex items-center h-5">
-                        <input
-                          id="hs-table-pagination-checkbox-1"
-                          type="checkbox"
-                          className="border-gray-200 rounded text-blue-600 focus:ring-blue-500 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
-                        />
-                        <label
-                          for="hs-table-pagination-checkbox-1"
-                          className="sr-only"
+                <tbody className="bg-neutral-200 dark:bg-neutral-800 divide-y divide-gray-200 dark:divide-neutral-950">
+                  {medications.map((medication) => (
+                    <tr key={medication.id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200">
+                        {medication.medicineName}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-neutral-200">
+                        {medication.quantity}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-neutral-200">
+                        {new Date(medication.updatedOn).toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-neutral-200">
+                        <button
+                          onClick={() =>
+                            handlePharmacyClick(medication.pharmacy)
+                          }
+                          className="text-blue-600 hover:text-blue-800 dark:text-blue-500 dark:hover:text-blue-400"
                         >
-                          Checkbox
-                        </label>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200">
-                      John Brown
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-neutral-200">
-                      45
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-neutral-200">
-                      New York No. 1 Lake Park
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-end text-sm font-medium">
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent text-blue-600 hover:text-blue-800 focus:outline-none focus:text-blue-800 disabled:opacity-50 disabled:pointer-events-none dark:text-blue-500 dark:hover:text-blue-400 dark:focus:text-blue-400"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-
-                  <tr>
-                    <td className="py-3 ps-4">
-                      <div className="flex items-center h-5">
-                        <input
-                          id="hs-table-pagination-checkbox-2"
-                          type="checkbox"
-                          className="border-gray-200 rounded text-blue-600 focus:ring-blue-500 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
-                        />
-                        <label
-                          for="hs-table-pagination-checkbox-2"
-                          className="sr-only"
+                          {medication.pharmacy.name}
+                        </button>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-end text-sm font-medium">
+                        <button
+                          onClick={() => handleEdit(medication.medicineId)}
+                          className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-600 mr-2"
                         >
-                          Checkbox
-                        </label>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200">
-                      Jim Green
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-neutral-200">
-                      27
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-neutral-200">
-                      London No. 1 Lake Park
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-end text-sm font-medium">
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent text-blue-600 hover:text-blue-800 focus:outline-none focus:text-blue-800 disabled:opacity-50 disabled:pointer-events-none dark:text-blue-500 dark:hover:text-blue-400 dark:focus:text-blue-400"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-
-                  <tr>
-                    <td className="py-3 ps-4">
-                      <div className="flex items-center h-5">
-                        <input
-                          id="hs-table-pagination-checkbox-3"
-                          type="checkbox"
-                          className="border-gray-200 rounded text-blue-600 focus:ring-blue-500 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
-                        />
-                        <label
-                          for="hs-table-pagination-checkbox-3"
-                          className="sr-only"
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => handleDelete(medication.medicineId)}
+                          className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-600"
                         >
-                          Checkbox
-                        </label>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200">
-                      Joe Black
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-neutral-200">
-                      31
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-neutral-200">
-                      Sidney No. 1 Lake Park
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-end text-sm font-medium">
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent text-blue-600 hover:text-blue-800 focus:outline-none focus:text-blue-800 disabled:opacity-50 disabled:pointer-events-none dark:text-blue-500 dark:hover:text-blue-400 dark:focus:text-blue-400"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-
-                  <tr>
-                    <td className="py-3 ps-4">
-                      <div className="flex items-center h-5">
-                        <input
-                          id="hs-table-pagination-checkbox-4"
-                          type="checkbox"
-                          className="border-gray-200 rounded text-blue-600 focus:ring-blue-500 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
-                        />
-                        <label
-                          for="hs-table-pagination-checkbox-4"
-                          className="sr-only"
-                        >
-                          Checkbox
-                        </label>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200">
-                      Edward King
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-neutral-200">
-                      16
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-neutral-200">
-                      LA No. 1 Lake Park
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-end text-sm font-medium">
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent text-blue-600 hover:text-blue-800 focus:outline-none focus:text-blue-800 disabled:opacity-50 disabled:pointer-events-none dark:text-blue-500 dark:hover:text-blue-400 dark:focus:text-blue-400"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-
-                  <tr>
-                    <td className="py-3 ps-4">
-                      <div className="flex items-center h-5">
-                        <input
-                          id="hs-table-pagination-checkbox-5"
-                          type="checkbox"
-                          className="border-gray-200 rounded text-blue-600 focus:ring-blue-500 dark:bg-neutral-800 dark:border-neutral-700 dark:checked:bg-blue-500 dark:checked:border-blue-500 dark:focus:ring-offset-gray-800"
-                        />
-                        <label
-                          for="hs-table-pagination-checkbox-5"
-                          className="sr-only"
-                        >
-                          Checkbox
-                        </label>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200">
-                      Jim Red
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-neutral-200">
-                      45
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800 dark:text-neutral-200">
-                      Melbourne No. 1 Lake Park
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-end text-sm font-medium">
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-x-2 text-sm font-semibold rounded-lg border border-transparent text-blue-600 hover:text-blue-800 focus:outline-none focus:text-blue-800 disabled:opacity-50 disabled:pointer-events-none dark:text-blue-500 dark:hover:text-blue-400 dark:focus:text-blue-400"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
+                          Excluir
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
+              {renderLoadingOrError()}
             </div>
-            <div className="py-1 px-4">
+            <div className="py-1 px-4 bg-neutral-100 dark:bg-neutral-800">
               <nav
                 className="flex items-center space-x-1"
                 aria-label="Pagination"
@@ -304,6 +282,9 @@ export default function TableContent() {
           </div>
         </div>
       </div>
+      {selectedPharmacy && (
+        <PharmacyModal pharmacy={selectedPharmacy} onClose={handleCloseModal} />
+      )}
     </div>
   );
 }
