@@ -10,28 +10,24 @@ export const useAuth = () => {
     const token = Cookies.get("token");
     const name = Cookies.get("name");
     const roles = Cookies.get("roles");
+    const pharmacyId = Cookies.get("idPharmacy");
 
     if (token && name && roles) {
-      setUser({ name, roles: JSON.parse(roles) });
+      if (pharmacyId) {
+        setUser({ name, roles, pharmacyId });
+      } else {
+        setUser({ name, roles });
+      }
     } else {
       router.push("/auth");
     }
   }, [router]);
 
-  //   const token = "dasdasdasdasdasdas";
-  //   const name = "teste";
-  //   const roles = "CLIENTE";
-  //   if (token && name && roles) {
-  //     setUser({ name, roles });
-  //   } else {
-  //     router.push("/auth");
-  //   }
-  // }, [router]);
-
   const logout = () => {
     Cookies.remove("token");
     Cookies.remove("name");
     Cookies.remove("roles");
+    Cookies.remove("pharmacyId");
     setUser(null);
     router.push("/auth");
   };

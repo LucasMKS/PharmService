@@ -4,12 +4,10 @@ import {
   FiHome,
   FiDollarSign,
   FiMonitor,
-  FiShoppingCart,
-  FiTag,
-  FiBarChart,
-  FiUsers,
   FiChevronDown,
   FiChevronsRight,
+  FiChevronLeft,
+  FiLogOut,
 } from "react-icons/fi";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -31,62 +29,40 @@ const Sidebar = ({ setSelectedContent }) => {
         width: open ? "225px" : "fit-content",
       }}
     >
-      <TitleSection open={open} user={user} />
-
-      <div className="space-y-1">
-        <Option
-          Icon={FiHome}
-          title="Dashboard"
-          selected={selected}
-          setSelected={handleOptionSelect}
-          open={open}
-        />
-        <Option
-          Icon={FiDollarSign}
-          title="Sales"
-          selected={selected}
-          setSelected={handleOptionSelect}
-          open={open}
-          notifs={3}
-        />
-        <Option
-          Icon={FiMonitor}
-          title="View Site"
-          selected={selected}
-          setSelected={handleOptionSelect}
-          open={open}
-        />
-        <Option
-          Icon={FiShoppingCart}
-          title="Products"
-          selected={selected}
-          setSelected={handleOptionSelect}
-          open={open}
-        />
-        <Option
-          Icon={FiTag}
-          title="Tags"
-          selected={selected}
-          setSelected={handleOptionSelect}
-          open={open}
-        />
-        <Option
-          Icon={FiBarChart}
-          title="Analytics"
-          selected={selected}
-          setSelected={handleOptionSelect}
-          open={open}
-        />
-        <Option
-          Icon={FiUsers}
-          title="Members"
-          selected={selected}
-          setSelected={handleOptionSelect}
-          open={open}
-        />
+      {/* Top Section */}
+      <div>
+        <TitleSection open={open} user={user} />
+        <div className="space-y-1">
+          <Option
+            Icon={FiHome}
+            title="Dashboard"
+            selected={selected}
+            setSelected={handleOptionSelect}
+            open={open}
+          />
+          <Option
+            Icon={FiDollarSign}
+            title="Reservas"
+            selected={selected}
+            setSelected={handleOptionSelect}
+            open={open}
+            notifs={3}
+          />
+          <Option
+            Icon={FiMonitor}
+            title="Funcionarios"
+            selected={selected}
+            setSelected={handleOptionSelect}
+            open={open}
+          />
+        </div>
       </div>
 
-      <ToggleClose open={open} setOpen={setOpen} />
+      {/* Bottom Section */}
+      <div>
+        <ToggleClose open={open} setOpen={setOpen} />
+        <Logout open={open} logout={logout} />
+      </div>
     </motion.nav>
   );
 };
@@ -194,6 +170,35 @@ const Logo = () => {
   );
 };
 
+const Logout = ({ open, logout }) => {
+  return (
+    <motion.button
+      layout
+      onClick={logout}
+      className="flex items-center w-full p-3 text-slate-500 hover:bg-red-100 hover:text-red-600"
+    >
+      <motion.div
+          layout
+          className=" place-content-center text-lg"
+        >
+          <FiLogOut
+            className="mr-2 text-lg" />
+        </motion.div>
+        {open && (
+          <motion.span
+            layout
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.125 }}
+            className="text-sm "
+          >
+            Sair
+          </motion.span>
+        )}
+    </motion.button>
+  );
+};
+
 const ToggleClose = ({ open, setOpen }) => {
   return (
     <motion.button
@@ -207,7 +212,7 @@ const ToggleClose = ({ open, setOpen }) => {
           className="grid size-10 place-content-center text-lg"
         >
           <FiChevronsRight
-            className={`transition-transform ${open && "rotate-180"}`}
+            className={`transition-transform ${open && "rotate-180"} bg-black`}
           />
         </motion.div>
         {open && (
@@ -216,9 +221,9 @@ const ToggleClose = ({ open, setOpen }) => {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.125 }}
-            className="text-xs font-medium"
+            className="ml-2 text-sm font-medium text-black"
           >
-            Hide
+            Esconder
           </motion.span>
         )}
       </div>

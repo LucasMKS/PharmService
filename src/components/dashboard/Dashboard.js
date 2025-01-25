@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { ClipLoader } from "react-spinners";
 import { useAuth } from "@/hooks/useAuth";
+import Cookies from "js-cookie";
 import Sidebar from "./Sidebar";
 import TableContent from "./TableContent";
 // Importe seus componentes de teste
@@ -14,19 +15,18 @@ const Loader = () => (
 );
 
 export const Dashboard = () => {
-  const [selectedContent, setSelectedContent] = useState(<TableContent />);
+  const roles = Cookies.get("roles");
+  const pharmacyId = Cookies.get("pharmacyId");
+  const [selectedContent, setSelectedContent] = useState(<TableContent roles={roles} pharmacyId={pharmacyId}/>);
   const [isPageLoading, setIsPageLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
+ 
 
   const contentMap = {
-    Dashboard: <TableContent />,
-    Sales: <Teste1 />,
-    "View Site": <Teste2 />,
-    Products: <TableContent />,
-    Tags: <Teste1 />,
-    Analytics: <Teste2 />,
-    Members: <TableContent />,
+    Dashboard: <TableContent roles={roles} pharmacyId={pharmacyId}/>,
+    Reservas: <Teste1 />,
+    Funcionarios: <Teste2 />,
   };
 
   useEffect(() => {
@@ -56,7 +56,7 @@ export const Dashboard = () => {
 
   return (
     <div className="flex bg-indigo-50">
-      <Sidebar setSelectedContent={handleContentChange} user={user} />
+      <Sidebar setSelectedContent={handleContentChange} user={user} roles={roles} />
       <main className="flex-1">
         {isLoading ? (
           <Loader className="bg-blue-100 dark:bg-slate-950" />

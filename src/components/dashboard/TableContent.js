@@ -1,24 +1,53 @@
 "use client";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useForm } from "react-hook-form";
+import Fuse from "fuse.js";
 import PharmService from "../services/PharmService";
 import PharmacyModal from "./PharmacyModal";
 import { debounce } from "lodash";
 
-export default function TableContent() {
+const TableContent = ({ roles, pharmacyId }) => {
   const [medications, setMedications] = useState([]);
+  const [filteredMedications, setFilteredMedications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedPharmacy, setSelectedPharmacy] = useState(null);
+  const [selectedMedicine, setSelectedMedicine] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [isSearching, setIsSearching] = useState(false);
-  const [noResults, setNoResults] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  const { register, handleSubmit, formState: { errors }, reset } = useForm();
+
+  // Configuração do Fuse.js
+  const fuse = useMemo(
+    () =>
+      new Fuse(medications, {
+        keys: ["medicineName", "pharmacy.name"],
+        threshold: 0.3, // Ajusta a sensibilidade da busca
+      }),
+    [medications]
+  );
 
   useEffect(() => {
     const fetchMedications = async () => {
       try {
-        const response = await PharmService.getAllMedicines();
-        console.log("Resposta da API:", response);
+        let response;
+        if (roles === 'FARMACIA' || roles === 'GERENTE') {
+          if (pharmacyId) {
+            // Fetch medicines for specific pharmacy
+            response = await PharmService.getMedicineByPharmacyId(pharmacyId);
+          } else {
+            // Fallback to all medicines if no pharmacyId
+            response = await PharmService.getAllMedicines();
+          }
+        } else {
+          // For other roles, fetch all medicines
+          response = await PharmService.getAllMedicines();
+        }
+
         setMedications(response);
+        setFilteredMedications(response);
         setLoading(false);
       } catch (err) {
         setError("Falha ao buscar medicamentos");
@@ -27,54 +56,87 @@ export default function TableContent() {
     };
 
     fetchMedications();
-  }, []);
+  }, [roles, pharmacyId]);
 
+  // Função otimizada para busca local
   const handleSearch = useCallback(
-    debounce(async (term) => {
+    debounce((term) => {
       if (term.trim() === "") {
-        setIsSearching(false);
-        setNoResults(false);
-        const allMedicines = await PharmService.getAllMedicines();
-        setMedications(allMedicines);
-        return;
-      }
-
-      setIsSearching(true);
-      setNoResults(false);
-      try {
-        const results = await PharmService.getMedicineByName(term);
-        setMedications(results);
-        console.log(results);
-        // Se nenhum resultado for encontrado
-        if (results.length === 0) {
-          setNoResults(true);
-        }
-      } catch (error) {
-        console.error("Error searching for medicine:", error);
-        // setError("Falha ao buscar medicamentos");
-      } finally {
-        setIsSearching(false);
+        setFilteredMedications(medications); // Sem busca, exibe todos
+      } else {
+        const results = fuse.search(term).map(({ item }) => item);
+        setFilteredMedications(results);
       }
     }, 300),
-    []
+    [fuse, medications]
   );
 
   useEffect(() => {
     handleSearch(searchTerm);
   }, [searchTerm, handleSearch]);
 
-  const handlePharmacyClick = (pharmacy) => {
-    setSelectedPharmacy(pharmacy);
-  };
+  const handlePharmacyClick = (pharmacy) => setSelectedPharmacy(pharmacy);
+  const handleCloseModal = () => setSelectedPharmacy(null);
 
-  const handleCloseModal = () => {
-    setSelectedPharmacy(null);
+  const handleAddMedication = async (data) => {
+    try {
+      await PharmService.addMedicine({
+        medicineName: data.medicineName,
+        idPharmacy: Number(data.idPharmacy), // Converte para número
+        quantity: Number(data.quantity), // Converte para número
+
+      });
+      alert("Medicamento adicionado com sucesso!");
+      reset(); // Reseta o formulário
+    } catch (error) {
+      console.error("Erro ao adicionar medicamento:", error);
+      alert("Não foi possível adicionar o medicamento.");
+    }
   };
 
   const handleEdit = (medicineId) => {
-    // Implementar lógica de edição
-    console.log("Editar medicamento", medicineId);
+    const medicineToEdit = medications.find((med) => med.medicineId === medicineId);
+    if (medicineToEdit) {
+      reset({
+        medicineName: medicineToEdit.medicineName,
+        quantity: medicineToEdit.quantity,
+        idPharmacy: medicineToEdit.idPharmacy,
+      });
+      setSelectedMedicine(medicineToEdit); // Defina o medicamento selecionado para o modal
+      document.getElementById('edit_modal').showModal(); // Mostra o modal de edição
+    }
   };
+
+  const handleEditSubmit = async (data) => {
+    try {
+      // Suponha que `data` tenha os campos corretamente
+      await PharmService.updateMedicine(data.idPharmacy, {
+        medicineName: data.medicineName,
+        quantity: data.quantity,
+      });
+  
+      // Atualiza a lista local de medicamentos
+      setMedications(
+        medications.map((med) =>
+          med.medicineId === selectedMedicine.medicineId
+            ? { ...med, medicineName: data.medicineName, quantity: data.quantity }
+            : med
+        )
+      );
+  
+      alert("Medicamento atualizado com sucesso!");
+  
+      // Fecha o modal e limpa o estado
+      document.getElementById('edit_modal').close();
+      setSelectedMedicine(null);  // Isso pode ser o suficiente para esconder o modal
+    } catch (error) {
+      console.error("Erro ao editar medicamento:", error);
+      alert("Não foi possível editar o medicamento.");
+    }
+  };
+  
+
+
 
   const handleDelete = async (medicineId) => {
     if (window.confirm("Tem certeza que deseja excluir este medicamento?")) {
@@ -88,6 +150,16 @@ export default function TableContent() {
         alert("Não foi possível excluir o medicamento. Tente novamente.");
       }
     }
+  };
+
+  const handleReserv = (medicineId) => {
+    // Implementar lógica de edição
+    console.log("Reservar medicamento", medicineId);
+  };
+
+  const handleAlert = (medicineId) => {
+    // Implementar lógica de edição
+    console.log("Alerta medicamento", medicineId);
   };
 
   const renderLoadingOrError = () => {
@@ -110,55 +182,149 @@ export default function TableContent() {
     return null;
   };
 
+  // Pagination logic
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentMedications = filteredMedications.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredMedications.length / itemsPerPage);
+
+
+  // Pagination handlers
+  const handleNextPage = () => currentPage < totalPages && setCurrentPage((p) => p + 1);
+  const handlePrevPage = () => currentPage > 1 && setCurrentPage((p) => p - 1);
+
   return (
     <div className="bg-blue-100 dark:bg-slate-900 min-h-screen flex items-center justify-center p-6">
       <div className="w-full max-w-6xl bg-neutral-600 dark:bg-neutral-300 rounded-lg shadow-lg overflow-hidden">
         <div className="p-1.5 min-w-full inline-block align-middle">
           <div className="border rounded-lg divide-y dark:border-neutral-700 divide-gray-200 dark:divide-neutral-950">
-            <div className="py-3 px-4 bg-neutral-100 dark:bg-neutral-800">
+            <div className="py-3 px-4 bg-neutral-100 dark:bg-neutral-800 flex justify-between items-center">
               <div className="relative max-w-xs">
-                <label className="sr-only">Search</label>
                 <input
                   type="text"
-                  name="hs-table-with-pagination-search"
-                  id="hs-table-with-pagination-search"
                   className="py-2 px-3 ps-9 block w-full border-gray-200 shadow-sm rounded-lg text-sm focus:z-10 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400 dark:placeholder-neutral-500 dark:focus:ring-neutral-600"
                   placeholder="Buscar medicamentos"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
-                <div className="absolute inset-y-0 start-0 flex items-center pointer-events-none ps-3">
-                  <svg
-                    className="size-4 text-gray-400 dark:text-neutral-500"
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="24"
-                    height="24"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <circle cx="11" cy="11" r="8"></circle>
-                    <path d="m21 21-4.3-4.3"></path>
-                  </svg>
-                </div>
-
-                {/* Mensagem de medicamento não encontrado */}
-                {noResults && searchTerm.trim() !== "" && (
-                  <div className="absolute right-0 top-full mt-1 text-red-600 text-sm">
-                    Medicamento não encontrado
-                  </div>
-                )}
-
-                {isSearching && (
-                  <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                    <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-blue-500"></div>
-                  </div>
-                )}
               </div>
+
+
+              {roles !== 'CLIENTE' && (
+                <div >
+                  <button className="btn" onClick={() => document.getElementById('my_modal_5').showModal()}>Adicionar medicamento</button>
+                  <dialog id="my_modal_5" className="modal modal-bottom sm:modal-middle">
+                    <div className="modal-box">
+                      <h3 className="font-bold text-lg">Registrar Medicamento</h3>
+                      <p className="py-4">Preencha as informações abaixo para adicionar o medicamento:</p>
+                      <form onSubmit={handleSubmit(handleAddMedication)} className="space-y-4">
+                        <div>
+                          <label htmlFor="medicineName" className="block text-sm font-medium text-gray-700">
+                            Nome do Medicamento
+                          </label>
+                          <input
+                            id="medicineName"
+                            type="text"
+                            className="input input-bordered w-full"
+                            {...register("medicineName", { required: "Campo obrigatório" })}
+                          />
+                          {errors.medicineName && (
+                            <p className="text-red-600 text-sm">{errors.medicineName.message}</p>
+                          )}
+                        </div>
+                        <div>
+                          <label htmlFor="idPharmacy" className="block text-sm font-medium text-gray-700">
+                            ID da Farmácia
+                          </label>
+                          <input
+                            id="idPharmacy"
+                            type="number"
+                            className="input input-bordered w-full"
+                            defaultValue={pharmacyId || ''} // Condicional para preencher com pharmacyId se existir
+                            readOnly={!!pharmacyId}
+                            {...register("idPharmacy", { required: !pharmacyId && "Campo obrigatório" })} // Se pharmacyId não existe, é obrigatório
+                          />
+                          {errors.idPharmacy && (
+                            <p className="text-red-600 text-sm">{errors.idPharmacy.message}</p>
+                          )}
+                        </div>
+                        <div>
+                          <label htmlFor="quantity" className="block text-sm font-medium text-gray-700">
+                            Quantidade
+                          </label>
+                          <input
+                            id="quantity"
+                            type="number"
+                            className="input input-bordered w-full"
+                            {...register("quantity", { required: "Campo obrigatório", min: 0 })}
+                          />
+                          {errors.quantity && (
+                            <p className="text-red-600 text-sm">{errors.quantity.message}</p>
+                          )}
+                        </div>
+                        <div className="modal-action">
+                          <form method="dialog">
+                            {/* if there is a button in form, it will close the modal */}
+                            <button className="btn">Close</button>
+                          </form>
+                          <button type="submit" className="btn btn-primary">
+                            Salvar
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </dialog>
+                </div>
+              )}
             </div>
+
+            <dialog id="edit_modal" className="modal modal-bottom sm:modal-middle">
+              <div className="modal-box">
+                <h3 className="font-bold text-lg">Editar Medicamento</h3>
+                <form onSubmit={handleSubmit(handleEditSubmit)} className="space-y-4">
+                  <div>
+                    <label htmlFor="medicineName" className="block text-sm font-medium text-gray-700">
+                      Nome do Medicamento
+                    </label>
+                    <input
+                      id="medicineName"
+                      type="text"
+                      className="input input-bordered w-full"
+                      {...register("medicineName", { required: "Campo obrigatório" })}
+                    />
+                    {errors.medicineName && (
+                      <p className="text-red-600 text-sm">{errors.medicineName.message}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label htmlFor="quantity" className="block text-sm font-medium text-gray-700">
+                      Quantidade
+                    </label>
+                    <input
+                      id="quantity"
+                      type="number"
+                      className="input input-bordered w-full"
+                      {...register("quantity", { required: "Campo obrigatório", min: 0 })}
+                    />
+                    {errors.quantity && (
+                      <p className="text-red-600 text-sm">{errors.quantity.message}</p>
+                    )}
+                  </div>
+                  <div className="modal-action">
+                    <form method="dialog">
+                      {/* if there is a button in form, it will close the modal */}
+                      <button className="btn">Close</button>
+                    </form>
+                    <button type="submit" className="btn btn-primary">
+                      Salvar
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </dialog>
+
+
+
             <div className="overflow-hidden">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-neutral-700">
                 <thead className="bg-neutral-100 dark:bg-neutral-800">
@@ -196,7 +362,7 @@ export default function TableContent() {
                   </tr>
                 </thead>
                 <tbody className="bg-neutral-200 dark:bg-neutral-800 divide-y divide-gray-200 dark:divide-neutral-950">
-                  {medications.map((medication) => (
+                  {currentMedications.map((medication) => (
                     <tr key={medication.id}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200">
                         {medication.medicineName}
@@ -217,67 +383,67 @@ export default function TableContent() {
                           {medication.pharmacy.name}
                         </button>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-end text-sm font-medium">
-                        <button
-                          onClick={() => handleEdit(medication.medicineId)}
-                          className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-600 mr-2"
-                        >
-                          Editar
-                        </button>
-                        <button
-                          onClick={() => handleDelete(medication.medicineId)}
-                          className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-600"
-                        >
-                          Excluir
-                        </button>
-                      </td>
+
+                      {roles !== 'CLIENTE' && (
+                        <td className="px-6 py-4 whitespace-nowrap text-end text-sm font-medium">
+                          <button
+                            onClick={() => handleEdit(medication.medicineId)}
+                            className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-600 mr-2"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => handleDelete(medication.medicineId)}
+                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-600"
+                          >
+                            Excluir
+                          </button>
+                        </td>
+                      )}
+                      {roles === 'CLIENTE' && (
+                        <td className="px-6 py-4 whitespace-nowrap text-end text-sm font-medium">
+                          {medication.quantity !== 0 ? (
+                            <button
+                              onClick={() => handleReserv(medication.medicineId)}
+                              className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-600 mr-2"
+                            >
+                              Reservar
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleAlert(medication.medicineId)}
+                              className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-600 mr-2"
+                            >
+                              Criar Alerta
+                            </button>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   ))}
+
                 </tbody>
               </table>
               {renderLoadingOrError()}
             </div>
-            <div className="py-1 px-4 bg-neutral-100 dark:bg-neutral-800">
-              <nav
-                className="flex items-center space-x-1"
-                aria-label="Pagination"
+            <div className="py-2 px-4 bg-neutral-100 dark:bg-neutral-800 flex items-center justify-between">
+              <button
+                onClick={handlePrevPage}
+                disabled={currentPage === 1}
+                className="px-4 py-2 text-sm font-medium text-white bg-gray-600 hover:bg-gray-500 rounded disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <button
-                  type="button"
-                  className="p-2.5 min-w-[40px] inline-flex justify-center items-center gap-x-2 text-sm rounded-full text-gray-800 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none dark:text-white dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
-                  aria-label="Previous"
-                >
-                  <span aria-hidden="true">«</span>
-                  <span className="sr-only">Previous</span>
-                </button>
-                <button
-                  type="button"
-                  className="min-w-[40px] flex justify-center items-center text-gray-800 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 py-2.5 text-sm rounded-full disabled:opacity-50 disabled:pointer-events-none dark:text-white dark:focus:bg-neutral-700 dark:hover:bg-neutral-700"
-                  aria-current="page"
-                >
-                  1
-                </button>
-                <button
-                  type="button"
-                  className="min-w-[40px] flex justify-center items-center text-gray-800 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 py-2.5 text-sm rounded-full disabled:opacity-50 disabled:pointer-events-none dark:text-white dark:focus:bg-neutral-700 dark:hover:bg-neutral-700"
-                >
-                  2
-                </button>
-                <button
-                  type="button"
-                  className="min-w-[40px] flex justify-center items-center text-gray-800 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 py-2.5 text-sm rounded-full disabled:opacity-50 disabled:pointer-events-none dark:text-white dark:focus:bg-neutral-700 dark:hover:bg-neutral-700"
-                >
-                  3
-                </button>
-                <button
-                  type="button"
-                  className="p-2.5 min-w-[40px] inline-flex justify-center items-center gap-x-2 text-sm rounded-full text-gray-800 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 disabled:opacity-50 disabled:pointer-events-none dark:text-white dark:hover:bg-neutral-700 dark:focus:bg-neutral-700"
-                  aria-label="Next"
-                >
-                  <span className="sr-only">Next</span>
-                  <span aria-hidden="true">»</span>
-                </button>
-              </nav>
+                Anterior
+              </button>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Página {currentPage} de {totalPages}
+              </span>
+              <button
+                onClick={handleNextPage}
+                disabled={currentPage === totalPages}
+                className="px-4 py-2 text-sm font-medium text-white bg-gray-600 hover:bg-gray-500 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Próxima
+              </button>
             </div>
           </div>
         </div>
@@ -288,3 +454,5 @@ export default function TableContent() {
     </div>
   );
 }
+
+export default TableContent;

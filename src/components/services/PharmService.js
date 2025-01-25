@@ -30,7 +30,10 @@ const PharmService = {
       // Salvar token e informações do usuário nos cookies
       Cookies.set("token", response.data.token);
       Cookies.set("name", response.data.name);
-      Cookies.set("roles", JSON.stringify(response.data.roles));
+      Cookies.set("roles", response.data.roles);
+      if (response.data.roles.includes("FARMACIA") || response.data.roles.includes("GERENTE")) {
+        Cookies.set("pharmacyId", response.data.idPharmacy);
+      }
       return response.data;
     } catch (error) {
       console.error("Erro ao fazer login:", error);
@@ -71,13 +74,29 @@ const PharmService = {
     }
   },
 
+  // Método para buscar um medicamento pela farmacia
+  getMedicineByPharmacyId: async (pharmacyId) => {
+    try {
+      const response = await axiosInstance.get(`/medicine/pharmacy/${pharmacyId}`);
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao buscar medicamento:", error);
+      throw error;
+    }
+  },
+
   // Método para adicionar um novo medicamento
   addMedicine: async (medicineData) => {
     try {
-      const response = await axiosInstance.post("/medicines", medicineData);
+      const response = await axiosInstance.post("/medicineFarm/create", medicineData);
       return response.data;
     } catch (error) {
-      console.error("Erro ao adicionar medicamento:", error);
+      console.error("Network Error Details:", {
+        message: error.message,
+        code: error.code,
+        config: error.config,
+        response: error.response
+      });
       throw error;
     }
   },
@@ -86,7 +105,7 @@ const PharmService = {
   updateMedicine: async (id, medicineData) => {
     try {
       const response = await axiosInstance.put(
-        `/medicineFarm/${id}`,
+        `/medicineFarm/update/${id}`,
         medicineData
       );
       return response.data;
