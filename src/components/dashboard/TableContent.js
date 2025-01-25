@@ -1,10 +1,133 @@
 "use client";
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useForm } from "react-hook-form";
+import NextTopLoader from "nextjs-toploader";
 import Fuse from "fuse.js";
+import Cookies from "js-cookie";
 import PharmService from "../services/PharmService";
 import PharmacyModal from "./PharmacyModal";
 import { debounce } from "lodash";
+
+
+const ReservationModal = ({ 
+  isOpen, 
+  onClose, 
+  medicineId, 
+  medicineName, 
+  onReservationSuccess 
+}) => {
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    setSelectedFile(file);
+    setError(null);
+  };
+
+  const handleReservation = async () => {
+    if (!selectedFile) {
+      setError("Por favor, selecione uma prescrição.");
+      return;
+    }
+
+    const userId = Cookies.get("userId");
+    if (!userId) {
+      setError("Por favor, faça login para reservar um medicamento.");
+      return;
+    }
+
+    setIsLoading(true);
+    const formData = new FormData();
+    formData.append("userId", userId);
+    formData.append("stockId", medicineId);
+    formData.append("prescription", selectedFile);
+
+    try {
+      const response = await PharmService.createReservation(formData);
+      onReservationSuccess(medicineId);
+      alert(`Reserva criada com sucesso! Protocolo: ${response.prescriptionPath}`);
+      onClose();
+    } catch (error) {
+      const errorMessage = error.response?.data || 
+        "Não foi possível criar a reserva. Por favor, tente novamente.";
+      setError(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <>
+    <NextTopLoader 
+        color="#2299dd" 
+        initialPosition={0.08} 
+        crawlSpeed={200} 
+        height={3} 
+        crawl={true} 
+        showSpinner={true} 
+        easing="ease"
+        speed={200} 
+        shadow="0 0 10px #2299dd,0 0 5px #2299dd"
+      />
+    <dialog id="reservation_modal" className="modal modal-bottom sm:modal-middle" open>
+      <div className="modal-box">
+        <h3 className="font-bold text-lg">Reservar Medicamento</h3>
+        <p className="py-4">Reservando: {medicineName}</p>
+        
+        <div className="form-control w-full">
+          <label className="label">
+            <span className="label-text">Anexe sua prescrição médica</span>
+          </label>
+          <input 
+            type="file" 
+            accept="image/*,application/pdf" 
+            className="file-input file-input-bordered w-full" 
+            onChange={handleFileChange}
+          />
+        </div>
+
+        {selectedFile && (
+          <div className="mt-4">
+            <p>Arquivo selecionado: {selectedFile.name}</p>
+          </div>
+        )}
+
+        {error && (
+          <div className="alert alert-error mt-4">
+            <div className="flex-1">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="w-6 h-6 mx-2 stroke-current">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+              </svg>
+              <label>{error}</label>
+            </div>
+          </div>
+        )}
+
+        <div className="modal-action">
+          <button 
+            className="btn" 
+            onClick={onClose}
+          >
+            Cancelar
+          </button>
+          <button 
+            className="btn btn-primary" 
+            onClick={handleReservation}
+            disabled={!selectedFile || isLoading}
+          >
+            Reservar
+          </button>
+        </div>
+      </div>
+    </dialog>
+    </>
+  );  
+};
 
 const TableContent = ({ roles, pharmacyId }) => {
   const [medications, setMedications] = useState([]);
@@ -16,6 +139,8 @@ const TableContent = ({ roles, pharmacyId }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const [reservationModalOpen, setReservationModalOpen] = useState(false);
+  const [selectedMedicineForReservation, setSelectedMedicineForReservation] = useState(null);
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm();
 
@@ -152,9 +277,21 @@ const TableContent = ({ roles, pharmacyId }) => {
     }
   };
 
-  const handleReserv = (medicineId) => {
-    // Implementar lógica de edição
-    console.log("Reservar medicamento", medicineId);
+  const handleReserv = (medication) => {
+    setSelectedMedicineForReservation(medication);
+    setReservationModalOpen(true);
+  };
+
+  const handleReservationSuccess = (medicineId) => {
+    // Update medications state after successful reservation
+    const updatedMedications = medications.map(med => 
+      med.medicineId === medicineId 
+        ? { ...med, quantity: med.quantity - 1 } 
+        : med
+    );
+    
+    setMedications(updatedMedications);
+    setFilteredMedications(updatedMedications);
   };
 
   const handleAlert = (medicineId) => {
@@ -324,7 +461,7 @@ const TableContent = ({ roles, pharmacyId }) => {
             </dialog>
 
 
-
+      
             <div className="overflow-hidden">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-neutral-700">
                 <thead className="bg-neutral-100 dark:bg-neutral-800">
@@ -404,7 +541,7 @@ const TableContent = ({ roles, pharmacyId }) => {
                         <td className="px-6 py-4 whitespace-nowrap text-end text-sm font-medium">
                           {medication.quantity !== 0 ? (
                             <button
-                              onClick={() => handleReserv(medication.medicineId)}
+                              onClick={() => handleReserv(medication)}
                               className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-600 mr-2"
                             >
                               Reservar
@@ -421,7 +558,13 @@ const TableContent = ({ roles, pharmacyId }) => {
                       )}
                     </tr>
                   ))}
-
+<ReservationModal 
+        isOpen={reservationModalOpen}
+        onClose={() => setReservationModalOpen(false)}
+        medicineId={selectedMedicineForReservation?.medicineId}
+        medicineName={selectedMedicineForReservation?.medicineName}
+        onReservationSuccess={handleReservationSuccess}
+      />
                 </tbody>
               </table>
               {renderLoadingOrError()}

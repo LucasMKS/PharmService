@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import Navbar from "@components/Navbar";
 import HomePage from "@components/home/HomePage";
 import First from "@components/home/HeroSection";
 import Feature from "@components/home/Feature";

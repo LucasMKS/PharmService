@@ -11,12 +11,13 @@ export const useAuth = () => {
     const name = Cookies.get("name");
     const roles = Cookies.get("roles");
     const pharmacyId = Cookies.get("idPharmacy");
+    const userId = Cookies.get("userId");
 
     if (token && name && roles) {
       if (pharmacyId) {
-        setUser({ name, roles, pharmacyId });
+        setUser({ name, roles, pharmacyId, userId });
       } else {
-        setUser({ name, roles });
+        setUser({ name, roles, userId });
       }
     } else {
       router.push("/auth");
@@ -28,6 +29,7 @@ export const useAuth = () => {
     Cookies.remove("name");
     Cookies.remove("roles");
     Cookies.remove("pharmacyId");
+    Cookies.remove("userId");
     setUser(null);
     router.push("/auth");
   };

@@ -31,6 +31,7 @@ const PharmService = {
       Cookies.set("token", response.data.token);
       Cookies.set("name", response.data.name);
       Cookies.set("roles", response.data.roles);
+      Cookies.set("userId", response.data.userId);
       if (response.data.roles.includes("FARMACIA") || response.data.roles.includes("GERENTE")) {
         Cookies.set("pharmacyId", response.data.idPharmacy);
       }
@@ -136,6 +137,21 @@ const PharmService = {
       throw error;
     }
   },
+
+  createReservation: async (formData) => {
+    try {
+      const response = await axiosInstance.post("/reservations/create", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      })
+      return response.data
+    } catch (error) {
+      console.error("Erro ao criar reserva:", error)
+      throw error
+    }
+  },
+
 };
 
 export default PharmService;
