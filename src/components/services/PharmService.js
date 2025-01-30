@@ -112,7 +112,7 @@ const PharmService = {
       return response.data;
     } catch (error) {
       console.error("Erro ao atualizar medicamento:", error);
-      throw error;
+      throw new Error(`Failed to update medication. ${error.message}`);
     }
   },
 
@@ -123,7 +123,7 @@ const PharmService = {
       return response.data;
     } catch (error) {
       console.error("Erro ao deletar medicamento:", error);
-      throw error;
+      throw new Error(`Failed to delete medication. ${error.message}`);
     }
   },
 
@@ -134,7 +134,7 @@ const PharmService = {
       return response.data;
     } catch (error) {
       console.error("Erro ao verificar disponibilidade do medicamento:", error);
-      throw error;
+      throw new Error(`Error checking medication availability. ${error.message}`);
     }
   },
 
@@ -148,9 +148,69 @@ const PharmService = {
       return response.data
     } catch (error) {
       console.error("Erro ao criar reserva:", error)
-      throw error
+      throw new Error(`Failed to create reservation. ${error.message}`);
     }
   },
+
+  // PharmService.js
+getReservationsByUser: async () => {
+  try {
+    const response = await axiosInstance.get(`/reservations/user`, {
+      headers: {
+        Authorization: `Bearer ${Cookies.get("token")}`
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Erro ao buscar reservas:", error);
+    throw error;
+  }
+},
+
+getAllReservations: async () => {
+  try {
+    const response = await axiosInstance.get("/reservations/list", {
+      headers: {
+        Authorization: `Bearer ${Cookies.get("token")}`
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Erro ao buscar reservas:", error);
+    throw error;
+  }
+},
+
+cancelReservation: async (reservationId) => {
+  try {
+    await axiosInstance.post(`/reservations/cancel/${reservationId}`, null, {
+      headers: {
+        Authorization: `Bearer ${Cookies.get("token")}`
+      }
+    });
+  } catch (error) {
+    console.error("Erro ao cancelar reserva:", error);
+    throw error;
+  }
+},
+
+manageReservation: async (reservationId, status, message) => {
+  try {
+    await axiosInstance.post("/reservations/manage", null, {
+      params: {
+        reservationId,
+        status,
+        message
+      },
+      headers: {
+        Authorization: `Bearer ${Cookies.get("token")}`
+      }
+    });
+  } catch (error) {
+    console.error("Erro ao gerenciar reserva:", error);
+    throw error;
+  }
+}
 
 };
 

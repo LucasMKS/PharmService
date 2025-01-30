@@ -1,13 +1,12 @@
 "use client";
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useForm } from "react-hook-form";
-import NextTopLoader from "nextjs-toploader";
 import Fuse from "fuse.js";
 import Cookies from "js-cookie";
 import PharmService from "../services/PharmService";
 import PharmacyModal from "./PharmacyModal";
+import AddMedication from "./AddMedication"
 import { debounce } from "lodash";
-
 
 const ReservationModal = ({ 
   isOpen, 
@@ -19,7 +18,6 @@ const ReservationModal = ({
   const [selectedFile, setSelectedFile] = useState(null);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -63,17 +61,6 @@ const ReservationModal = ({
 
   return (
     <>
-    <NextTopLoader 
-        color="#2299dd" 
-        initialPosition={0.08} 
-        crawlSpeed={200} 
-        height={3} 
-        crawl={true} 
-        showSpinner={true} 
-        easing="ease"
-        speed={200} 
-        shadow="0 0 10px #2299dd,0 0 5px #2299dd"
-      />
     <dialog id="reservation_modal" className="modal modal-bottom sm:modal-middle" open>
       <div className="modal-box">
         <h3 className="font-bold text-lg">Reservar Medicamento</h3>
@@ -183,11 +170,10 @@ const TableContent = ({ roles, pharmacyId }) => {
     fetchMedications();
   }, [roles, pharmacyId]);
 
-  // Função otimizada para busca local
   const handleSearch = useCallback(
     debounce((term) => {
       if (term.trim() === "") {
-        setFilteredMedications(medications); // Sem busca, exibe todos
+        setFilteredMedications(medications); 
       } else {
         const results = fuse.search(term).map(({ item }) => item);
         setFilteredMedications(results);
@@ -203,29 +189,13 @@ const TableContent = ({ roles, pharmacyId }) => {
   const handlePharmacyClick = (pharmacy) => setSelectedPharmacy(pharmacy);
   const handleCloseModal = () => setSelectedPharmacy(null);
 
-  const handleAddMedication = async (data) => {
-    try {
-      await PharmService.addMedicine({
-        medicineName: data.medicineName,
-        idPharmacy: Number(data.idPharmacy), // Converte para número
-        quantity: Number(data.quantity), // Converte para número
-
-      });
-      alert("Medicamento adicionado com sucesso!");
-      reset(); // Reseta o formulário
-    } catch (error) {
-      console.error("Erro ao adicionar medicamento:", error);
-      alert("Não foi possível adicionar o medicamento.");
-    }
-  };
-
   const handleEdit = (medicineId) => {
     const medicineToEdit = medications.find((med) => med.medicineId === medicineId);
     if (medicineToEdit) {
       reset({
         medicineName: medicineToEdit.medicineName,
         quantity: medicineToEdit.quantity,
-        idPharmacy: medicineToEdit.idPharmacy,
+        idPharmacy: medicineToEdit.pharmacy.id,
       });
       setSelectedMedicine(medicineToEdit); // Defina o medicamento selecionado para o modal
       document.getElementById('edit_modal').showModal(); // Mostra o modal de edição
@@ -234,8 +204,9 @@ const TableContent = ({ roles, pharmacyId }) => {
 
   const handleEditSubmit = async (data) => {
     try {
+      console.log(selectedMedicine);
       // Suponha que `data` tenha os campos corretamente
-      await PharmService.updateMedicine(data.idPharmacy, {
+      await PharmService.updateMedicine(selectedMedicine.pharmacy.id, {
         medicineName: data.medicineName,
         quantity: data.quantity,
       });
@@ -259,9 +230,6 @@ const TableContent = ({ roles, pharmacyId }) => {
       alert("Não foi possível editar o medicamento.");
     }
   };
-  
-
-
 
   const handleDelete = async (medicineId) => {
     if (window.confirm("Tem certeza que deseja excluir este medicamento?")) {
@@ -283,7 +251,6 @@ const TableContent = ({ roles, pharmacyId }) => {
   };
 
   const handleReservationSuccess = (medicineId) => {
-    // Update medications state after successful reservation
     const updatedMedications = medications.map(med => 
       med.medicineId === medicineId 
         ? { ...med, quantity: med.quantity - 1 } 
@@ -319,6 +286,10 @@ const TableContent = ({ roles, pharmacyId }) => {
     return null;
   };
 
+  const handleAddClick = () => {
+    document.getElementById("my_modal_5").showModal()
+  }
+
   // Pagination logic
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -346,69 +317,33 @@ const TableContent = ({ roles, pharmacyId }) => {
                 />
               </div>
 
-
-              {roles !== 'CLIENTE' && (
-                <div >
-                  <button className="btn" onClick={() => document.getElementById('my_modal_5').showModal()}>Adicionar medicamento</button>
+              {roles !== "CLIENTE" && (
+                <div>
+                  <button className="btn" onClick={handleAddClick}>
+                    Adicionar medicamento
+                  </button>
                   <dialog id="my_modal_5" className="modal modal-bottom sm:modal-middle">
                     <div className="modal-box">
-                      <h3 className="font-bold text-lg">Registrar Medicamento</h3>
-                      <p className="py-4">Preencha as informações abaixo para adicionar o medicamento:</p>
-                      <form onSubmit={handleSubmit(handleAddMedication)} className="space-y-4">
-                        <div>
-                          <label htmlFor="medicineName" className="block text-sm font-medium text-gray-700">
-                            Nome do Medicamento
-                          </label>
-                          <input
-                            id="medicineName"
-                            type="text"
-                            className="input input-bordered w-full"
-                            {...register("medicineName", { required: "Campo obrigatório" })}
-                          />
-                          {errors.medicineName && (
-                            <p className="text-red-600 text-sm">{errors.medicineName.message}</p>
-                          )}
-                        </div>
-                        <div>
-                          <label htmlFor="idPharmacy" className="block text-sm font-medium text-gray-700">
-                            ID da Farmácia
-                          </label>
-                          <input
-                            id="idPharmacy"
-                            type="number"
-                            className="input input-bordered w-full"
-                            defaultValue={pharmacyId || ''} // Condicional para preencher com pharmacyId se existir
-                            readOnly={!!pharmacyId}
-                            {...register("idPharmacy", { required: !pharmacyId && "Campo obrigatório" })} // Se pharmacyId não existe, é obrigatório
-                          />
-                          {errors.idPharmacy && (
-                            <p className="text-red-600 text-sm">{errors.idPharmacy.message}</p>
-                          )}
-                        </div>
-                        <div>
-                          <label htmlFor="quantity" className="block text-sm font-medium text-gray-700">
-                            Quantidade
-                          </label>
-                          <input
-                            id="quantity"
-                            type="number"
-                            className="input input-bordered w-full"
-                            {...register("quantity", { required: "Campo obrigatório", min: 0 })}
-                          />
-                          {errors.quantity && (
-                            <p className="text-red-600 text-sm">{errors.quantity.message}</p>
-                          )}
-                        </div>
-                        <div className="modal-action">
-                          <form method="dialog">
-                            {/* if there is a button in form, it will close the modal */}
-                            <button className="btn">Close</button>
-                          </form>
-                          <button type="submit" className="btn btn-primary">
-                            Salvar
-                          </button>
-                        </div>
-                      </form>
+                      <AddMedication
+                        pharmacyId={pharmacyId}
+                        onMedicationAdded={async () => {
+                          const updatedMedications = await PharmService.getAllMedicines()
+                          setMedications(updatedMedications)
+                          setFilteredMedications(updatedMedications)
+                          document.getElementById("my_modal_5").close()
+                        }}
+                      />
+                      <div className="modal-action">
+                        <button
+                          type="button"
+                          className="btn"
+                          onClick={() => {
+                            document.getElementById("my_modal_5").close()
+                          }}
+                        >
+                          Fechar
+                        </button>
+                      </div>
                     </div>
                   </dialog>
                 </div>
@@ -447,6 +382,17 @@ const TableContent = ({ roles, pharmacyId }) => {
                       <p className="text-red-600 text-sm">{errors.quantity.message}</p>
                     )}
                   </div>
+                  {roles !== 'CLIENTE' && ( 
+                    <input
+                            id="idPharmacy"
+                            type="number"
+                            className="input input-bordered w-full"
+                            defaultValue={pharmacyId || ''} // Condicional para preencher com pharmacyId se existir
+                            readOnly
+                            {...register("idPharmacy", { required: !pharmacyId && "Campo obrigatório" })} // Se pharmacyId não existe, é obrigatório
+                          />
+                  )}
+                  
                   <div className="modal-action">
                     <form method="dialog">
                       {/* if there is a button in form, it will close the modal */}
