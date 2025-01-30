@@ -4,8 +4,7 @@ import { useForm } from "react-hook-form";
 import NextTopLoader from "nextjs-toploader";
 import Cookies from "js-cookie";
 import PharmService from "../services/PharmService";
-import { motion } from "framer-motion";
-import { FiAlertCircle, FiCheckCircle, FiXCircle, FiEdit, FiTrash2 } from "react-icons/fi";
+import { FiAlertCircle, FiCheckCircle, FiXCircle, FiEdit } from "react-icons/fi";
 
 const StatusBadge = ({ status }) => {
     const statusConfig = {
@@ -29,7 +28,8 @@ const StatusBadge = ({ status }) => {
 };
 
 const ManageModal = ({ isOpen, onClose, reservation, onManage }) => {
-    const { register, handleSubmit } = useForm();
+    const { register, handleSubmit, watch } = useForm();
+    const selectedStatus = watch("status", "aprovado");
 
     const onSubmit = (data) => {
         onManage(reservation.id, data.status, data.message);
@@ -57,16 +57,19 @@ const ManageModal = ({ isOpen, onClose, reservation, onManage }) => {
                         </select>
                     </div>
 
-                    <div className="form-control">
-                        <label className="label">
-                            <span className="label-text dark:text-gray-300">Mensagem (Opcional)</span>
-                        </label>
-                        <textarea
-                            className="textarea textarea-bordered dark:bg-neutral-700 dark:text-white"
-                            {...register("message")}
-                            placeholder="Motivo da alteração..."
-                        />
-                    </div>
+
+                    {selectedStatus === "cancelado" && (
+                        <div className="form-control">
+                            <label className="label">
+                                <span className="label-text dark:text-gray-300">Mensagem (Obrigatória para cancelamento)</span>
+                            </label>
+                            <textarea
+                                className="textarea textarea-bordered dark:bg-neutral-700 dark:text-white"
+                                {...register("message", { required: selectedStatus === "cancelado" })}
+                                placeholder="Motivo do cancelamento..."
+                            />
+                        </div>
+                    )}
 
                     <div className="modal-action">
                         <button type="button" className="btn dark:text-white" onClick={onClose}>
@@ -236,7 +239,7 @@ const Reservation = () => {
                                 <th className="dark:text-gray-300">Usuário</th>
                                 <th className="dark:text-gray-300">Medicamento</th>
                                 <th className="dark:text-gray-300">Farmácia</th>
-                                <th className="dark:text-gray-300">Protocolo</th>
+                                <th className="dark:text-gray-300">Protocolo / Prescrição</th>
                                 <th className="dark:text-gray-300">Status</th>
                                 <th className="dark:text-gray-300">Data Expiração</th>
                                 <th className="dark:text-gray-300">Ações</th>
@@ -277,11 +280,12 @@ const Reservation = () => {
                                             {roles !== "CLIENTE" && (
                                                 <div className="flex space-x-2">
                                                     <button
-                                                        className="btn btn-sm btn-warning dark:bg-amber-600 dark:text-white"
+                                                        className={reservation.status !== "pendente" ? "btn btn-sm btn-warning dark:bg-slate-800 dark:text-white" : "btn btn-sm btn-warning dark:bg-amber-600 dark:text-white"}
                                                         onClick={() => {
                                                             setSelectedReservation(reservation);
                                                             setManageModalOpen(true);
                                                         }}
+                                                        disabled={reservation.status !== 'pendente'}
                                                     >
                                                         <FiEdit />
                                                     </button>

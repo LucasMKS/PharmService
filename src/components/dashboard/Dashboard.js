@@ -5,8 +5,6 @@ import Cookies from "js-cookie";
 import Sidebar from "./Sidebar";
 import TableContent from "./TableContent";
 import Reservation from "@/components/reservation/Reservation";
-// Importe seus componentes de teste
-import Teste1 from "@/components/dashboard/HeroSection";
 import Teste2 from "@/components/dashboard/Feature";
 
 const Loader = () => (
