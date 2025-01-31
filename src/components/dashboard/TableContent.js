@@ -5,15 +5,15 @@ import Fuse from "fuse.js";
 import Cookies from "js-cookie";
 import PharmService from "../services/PharmService";
 import PharmacyModal from "./PharmacyModal";
-import AddMedication from "./AddMedication"
+import AddMedication from "./AddMedication";
 import { debounce } from "lodash";
 
-const ReservationModal = ({ 
-  isOpen, 
-  onClose, 
-  medicineId, 
-  medicineName, 
-  onReservationSuccess 
+const ReservationModal = ({
+  isOpen,
+  onClose,
+  medicineId,
+  medicineName,
+  onReservationSuccess,
 }) => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [error, setError] = useState(null);
@@ -46,10 +46,13 @@ const ReservationModal = ({
     try {
       const response = await PharmService.createReservation(formData);
       onReservationSuccess(medicineId);
-      alert(`Reserva criada com sucesso! Protocolo: ${response.prescriptionPath}`);
+      alert(
+        `Reserva criada com sucesso! Protocolo: ${response.prescriptionPath}`
+      );
       onClose();
     } catch (error) {
-      const errorMessage = error.response?.data || 
+      const errorMessage =
+        error.response?.data ||
         "Não foi possível criar a reserva. Por favor, tente novamente.";
       setError(errorMessage);
     } finally {
@@ -61,59 +64,70 @@ const ReservationModal = ({
 
   return (
     <>
-    <dialog id="reservation_modal" className="modal modal-bottom sm:modal-middle" open>
-      <div className="modal-box">
-        <h3 className="font-bold text-lg">Reservar Medicamento</h3>
-        <p className="py-4">Reservando: {medicineName}</p>
-        
-        <div className="form-control w-full">
-          <label className="label">
-            <span className="label-text">Anexe sua prescrição médica</span>
-          </label>
-          <input 
-            type="file" 
-            accept="image/*,application/pdf" 
-            className="file-input file-input-bordered w-full" 
-            onChange={handleFileChange}
-          />
-        </div>
+      <dialog
+        id="reservation_modal"
+        className="modal modal-bottom sm:modal-middle"
+        open
+      >
+        <div className="modal-box">
+          <h3 className="font-bold text-lg">Reservar Medicamento</h3>
+          <p className="py-4">Reservando: {medicineName}</p>
 
-        {selectedFile && (
-          <div className="mt-4">
-            <p>Arquivo selecionado: {selectedFile.name}</p>
+          <div className="form-control w-full">
+            <label className="label">
+              <span className="label-text">Anexe sua prescrição médica</span>
+            </label>
+            <input
+              type="file"
+              accept="image/*,application/pdf"
+              className="file-input file-input-bordered w-full"
+              onChange={handleFileChange}
+            />
           </div>
-        )}
 
-        {error && (
-          <div className="alert alert-error mt-4">
-            <div className="flex-1">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="w-6 h-6 mx-2 stroke-current">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-              </svg>
-              <label>{error}</label>
+          {selectedFile && (
+            <div className="mt-4">
+              <p>Arquivo selecionado: {selectedFile.name}</p>
             </div>
-          </div>
-        )}
+          )}
 
-        <div className="modal-action">
-          <button 
-            className="btn" 
-            onClick={onClose}
-          >
-            Cancelar
-          </button>
-          <button 
-            className="btn btn-primary" 
-            onClick={handleReservation}
-            disabled={!selectedFile || isLoading}
-          >
-            Reservar
-          </button>
+          {error && (
+            <div className="alert alert-error mt-4">
+              <div className="flex-1">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  className="w-6 h-6 mx-2 stroke-current"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  ></path>
+                </svg>
+                <label>{error}</label>
+              </div>
+            </div>
+          )}
+
+          <div className="modal-action">
+            <button className="btn" onClick={onClose}>
+              Cancelar
+            </button>
+            <button
+              className="btn btn-primary"
+              onClick={handleReservation}
+              disabled={!selectedFile || isLoading}
+            >
+              Reservar
+            </button>
+          </div>
         </div>
-      </div>
-    </dialog>
+      </dialog>
     </>
-  );  
+  );
 };
 
 const TableContent = ({ roles, pharmacyId }) => {
@@ -127,9 +141,17 @@ const TableContent = ({ roles, pharmacyId }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [reservationModalOpen, setReservationModalOpen] = useState(false);
-  const [selectedMedicineForReservation, setSelectedMedicineForReservation] = useState(null);
+  const [selectedMedicineForReservation, setSelectedMedicineForReservation] =
+    useState(null);
+  const [alertsDrawerOpen, setAlertsDrawerOpen] = useState(false);
+  const [userAlerts, setUserAlerts] = useState([]);
 
-  const { register, handleSubmit, formState: { errors }, reset } = useForm();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset,
+  } = useForm();
 
   // Configuração do Fuse.js
   const fuse = useMemo(
@@ -145,7 +167,7 @@ const TableContent = ({ roles, pharmacyId }) => {
     const fetchMedications = async () => {
       try {
         let response;
-        if (roles === 'FARMACIA' || roles === 'GERENTE') {
+        if (roles === "FARMACIA" || roles === "GERENTE") {
           if (pharmacyId) {
             // Fetch medicines for specific pharmacy
             response = await PharmService.getMedicineByPharmacyId(pharmacyId);
@@ -173,7 +195,7 @@ const TableContent = ({ roles, pharmacyId }) => {
   const handleSearch = useCallback(
     debounce((term) => {
       if (term.trim() === "") {
-        setFilteredMedications(medications); 
+        setFilteredMedications(medications);
       } else {
         const results = fuse.search(term).map(({ item }) => item);
         setFilteredMedications(results);
@@ -190,7 +212,9 @@ const TableContent = ({ roles, pharmacyId }) => {
   const handleCloseModal = () => setSelectedPharmacy(null);
 
   const handleEdit = (medicineId) => {
-    const medicineToEdit = medications.find((med) => med.medicineId === medicineId);
+    const medicineToEdit = medications.find(
+      (med) => med.medicineId === medicineId
+    );
     if (medicineToEdit) {
       reset({
         medicineName: medicineToEdit.medicineName,
@@ -198,7 +222,7 @@ const TableContent = ({ roles, pharmacyId }) => {
         idPharmacy: medicineToEdit.pharmacy.id,
       });
       setSelectedMedicine(medicineToEdit); // Defina o medicamento selecionado para o modal
-      document.getElementById('edit_modal').showModal(); // Mostra o modal de edição
+      document.getElementById("edit_modal").showModal(); // Mostra o modal de edição
     }
   };
 
@@ -210,21 +234,25 @@ const TableContent = ({ roles, pharmacyId }) => {
         medicineName: data.medicineName,
         quantity: data.quantity,
       });
-  
+
       // Atualiza a lista local de medicamentos
       setMedications(
         medications.map((med) =>
           med.medicineId === selectedMedicine.medicineId
-            ? { ...med, medicineName: data.medicineName, quantity: data.quantity }
+            ? {
+                ...med,
+                medicineName: data.medicineName,
+                quantity: data.quantity,
+              }
             : med
         )
       );
-  
+
       alert("Medicamento atualizado com sucesso!");
-  
+
       // Fecha o modal e limpa o estado
-      document.getElementById('edit_modal').close();
-      setSelectedMedicine(null);  // Isso pode ser o suficiente para esconder o modal
+      document.getElementById("edit_modal").close();
+      setSelectedMedicine(null); // Isso pode ser o suficiente para esconder o modal
     } catch (error) {
       console.error("Erro ao editar medicamento:", error);
       alert("Não foi possível editar o medicamento.");
@@ -251,19 +279,14 @@ const TableContent = ({ roles, pharmacyId }) => {
   };
 
   const handleReservationSuccess = (medicineId) => {
-    const updatedMedications = medications.map(med => 
-      med.medicineId === medicineId 
-        ? { ...med, quantity: med.quantity - 1 } 
+    const updatedMedications = medications.map((med) =>
+      med.medicineId === medicineId
+        ? { ...med, quantity: med.quantity - 1 }
         : med
     );
-    
+
     setMedications(updatedMedications);
     setFilteredMedications(updatedMedications);
-  };
-
-  const handleAlert = (medicineId) => {
-    // Implementar lógica de edição
-    console.log("Alerta medicamento", medicineId);
   };
 
   const renderLoadingOrError = () => {
@@ -287,18 +310,37 @@ const TableContent = ({ roles, pharmacyId }) => {
   };
 
   const handleAddClick = () => {
-    document.getElementById("my_modal_5").showModal()
-  }
+    document.getElementById("my_modal_5").showModal();
+  };
+
+  // Função para criar alerta
+  const handleAlert = async (medication) => {
+    try {
+      console.log(medication);
+      const userId = Cookies.get("userId");
+      if (!userId) throw new Error("Usuário não autenticado");
+
+      await PharmService.createAlert(userId, medication.medicineId);
+      alert(
+        "Alerta criado com sucesso! Você será notificado quando houver estoque."
+      );
+    } catch (error) {
+      alert(`Erro ao criar alerta: ${error.message}`);
+    }
+  };
 
   // Pagination logic
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentMedications = filteredMedications.slice(indexOfFirstItem, indexOfLastItem);
+  const currentMedications = filteredMedications.slice(
+    indexOfFirstItem,
+    indexOfLastItem
+  );
   const totalPages = Math.ceil(filteredMedications.length / itemsPerPage);
 
-
   // Pagination handlers
-  const handleNextPage = () => currentPage < totalPages && setCurrentPage((p) => p + 1);
+  const handleNextPage = () =>
+    currentPage < totalPages && setCurrentPage((p) => p + 1);
   const handlePrevPage = () => currentPage > 1 && setCurrentPage((p) => p - 1);
 
   return (
@@ -322,15 +364,19 @@ const TableContent = ({ roles, pharmacyId }) => {
                   <button className="btn" onClick={handleAddClick}>
                     Adicionar medicamento
                   </button>
-                  <dialog id="my_modal_5" className="modal modal-bottom sm:modal-middle">
+                  <dialog
+                    id="my_modal_5"
+                    className="modal modal-bottom sm:modal-middle"
+                  >
                     <div className="modal-box">
                       <AddMedication
                         pharmacyId={pharmacyId}
                         onMedicationAdded={async () => {
-                          const updatedMedications = await PharmService.getAllMedicines()
-                          setMedications(updatedMedications)
-                          setFilteredMedications(updatedMedications)
-                          document.getElementById("my_modal_5").close()
+                          const updatedMedications =
+                            await PharmService.getAllMedicines();
+                          setMedications(updatedMedications);
+                          setFilteredMedications(updatedMedications);
+                          document.getElementById("my_modal_5").close();
                         }}
                       />
                       <div className="modal-action">
@@ -338,7 +384,7 @@ const TableContent = ({ roles, pharmacyId }) => {
                           type="button"
                           className="btn"
                           onClick={() => {
-                            document.getElementById("my_modal_5").close()
+                            document.getElementById("my_modal_5").close();
                           }}
                         >
                           Fechar
@@ -350,49 +396,72 @@ const TableContent = ({ roles, pharmacyId }) => {
               )}
             </div>
 
-            <dialog id="edit_modal" className="modal modal-bottom sm:modal-middle">
+            <dialog
+              id="edit_modal"
+              className="modal modal-bottom sm:modal-middle"
+            >
               <div className="modal-box">
                 <h3 className="font-bold text-lg">Editar Medicamento</h3>
-                <form onSubmit={handleSubmit(handleEditSubmit)} className="space-y-4">
+                <form
+                  onSubmit={handleSubmit(handleEditSubmit)}
+                  className="space-y-4"
+                >
                   <div>
-                    <label htmlFor="medicineName" className="block text-sm font-medium text-gray-700">
+                    <label
+                      htmlFor="medicineName"
+                      className="block text-sm font-medium text-gray-700"
+                    >
                       Nome do Medicamento
                     </label>
                     <input
                       id="medicineName"
                       type="text"
                       className="input input-bordered w-full"
-                      {...register("medicineName", { required: "Campo obrigatório" })}
+                      {...register("medicineName", {
+                        required: "Campo obrigatório",
+                      })}
                     />
                     {errors.medicineName && (
-                      <p className="text-red-600 text-sm">{errors.medicineName.message}</p>
+                      <p className="text-red-600 text-sm">
+                        {errors.medicineName.message}
+                      </p>
                     )}
                   </div>
                   <div>
-                    <label htmlFor="quantity" className="block text-sm font-medium text-gray-700">
+                    <label
+                      htmlFor="quantity"
+                      className="block text-sm font-medium text-gray-700"
+                    >
                       Quantidade
                     </label>
                     <input
                       id="quantity"
                       type="number"
                       className="input input-bordered w-full"
-                      {...register("quantity", { required: "Campo obrigatório", min: 0 })}
+                      {...register("quantity", {
+                        required: "Campo obrigatório",
+                        min: 0,
+                      })}
                     />
                     {errors.quantity && (
-                      <p className="text-red-600 text-sm">{errors.quantity.message}</p>
+                      <p className="text-red-600 text-sm">
+                        {errors.quantity.message}
+                      </p>
                     )}
                   </div>
-                  {roles !== 'CLIENTE' && ( 
+                  {roles !== "CLIENTE" && (
                     <input
-                            id="idPharmacy"
-                            type="number"
-                            className="input input-bordered w-full"
-                            defaultValue={pharmacyId || ''} // Condicional para preencher com pharmacyId se existir
-                            readOnly
-                            {...register("idPharmacy", { required: !pharmacyId && "Campo obrigatório" })} // Se pharmacyId não existe, é obrigatório
-                          />
+                      id="idPharmacy"
+                      type="number"
+                      className="input input-bordered w-full"
+                      defaultValue={pharmacyId || ""} // Condicional para preencher com pharmacyId se existir
+                      readOnly
+                      {...register("idPharmacy", {
+                        required: !pharmacyId && "Campo obrigatório",
+                      })} // Se pharmacyId não existe, é obrigatório
+                    />
                   )}
-                  
+
                   <div className="modal-action">
                     <form method="dialog">
                       {/* if there is a button in form, it will close the modal */}
@@ -406,8 +475,6 @@ const TableContent = ({ roles, pharmacyId }) => {
               </div>
             </dialog>
 
-
-      
             <div className="overflow-hidden">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-neutral-700">
                 <thead className="bg-neutral-100 dark:bg-neutral-800">
@@ -467,7 +534,7 @@ const TableContent = ({ roles, pharmacyId }) => {
                         </button>
                       </td>
 
-                      {roles !== 'CLIENTE' && (
+                      {roles !== "CLIENTE" && (
                         <td className="px-6 py-4 whitespace-nowrap text-end text-sm font-medium">
                           <button
                             onClick={() => handleEdit(medication.medicineId)}
@@ -483,7 +550,7 @@ const TableContent = ({ roles, pharmacyId }) => {
                           </button>
                         </td>
                       )}
-                      {roles === 'CLIENTE' && (
+                      {roles === "CLIENTE" && (
                         <td className="px-6 py-4 whitespace-nowrap text-end text-sm font-medium">
                           {medication.quantity !== 0 ? (
                             <button
@@ -494,7 +561,7 @@ const TableContent = ({ roles, pharmacyId }) => {
                             </button>
                           ) : (
                             <button
-                              onClick={() => handleAlert(medication.medicineId)}
+                              onClick={() => handleAlert(medication)}
                               className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-600 mr-2"
                             >
                               Criar Alerta
@@ -504,18 +571,18 @@ const TableContent = ({ roles, pharmacyId }) => {
                       )}
                     </tr>
                   ))}
-<ReservationModal 
-        isOpen={reservationModalOpen}
-        onClose={() => setReservationModalOpen(false)}
-        medicineId={selectedMedicineForReservation?.medicineId}
-        medicineName={selectedMedicineForReservation?.medicineName}
-        onReservationSuccess={handleReservationSuccess}
-      />
+                  <ReservationModal
+                    isOpen={reservationModalOpen}
+                    onClose={() => setReservationModalOpen(false)}
+                    medicineId={selectedMedicineForReservation?.medicineId}
+                    medicineName={selectedMedicineForReservation?.medicineName}
+                    onReservationSuccess={handleReservationSuccess}
+                  />
                 </tbody>
               </table>
               {renderLoadingOrError()}
             </div>
-            <div className="py-2 px-4 bg-neutral-100 dark:bg-neutral-800 flex items-center justify-between">
+            <div className="py-2 px-4 bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center space-x-4">
               <button
                 onClick={handlePrevPage}
                 disabled={currentPage === 1}
@@ -542,6 +609,6 @@ const TableContent = ({ roles, pharmacyId }) => {
       )}
     </div>
   );
-}
+};
 
 export default TableContent;

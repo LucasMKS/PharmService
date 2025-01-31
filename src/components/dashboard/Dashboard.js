@@ -16,14 +16,15 @@ const Loader = () => (
 export const Dashboard = () => {
   const roles = Cookies.get("roles");
   const pharmacyId = Cookies.get("pharmacyId");
-  const [selectedContent, setSelectedContent] = useState(<TableContent roles={roles} pharmacyId={pharmacyId}/>);
+  const [selectedContent, setSelectedContent] = useState(
+    <TableContent roles={roles} pharmacyId={pharmacyId} />
+  );
   const [isPageLoading, setIsPageLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
- 
 
   const contentMap = {
-    Dashboard: <TableContent roles={roles} pharmacyId={pharmacyId}/>,
+    Dashboard: <TableContent roles={roles} pharmacyId={pharmacyId} />,
     Reservas: <Reservation />,
     Funcionarios: <Teste2 />,
   };
@@ -55,7 +56,11 @@ export const Dashboard = () => {
 
   return (
     <div className="flex bg-indigo-50">
-      <Sidebar setSelectedContent={handleContentChange} user={user} roles={roles} />
+      <Sidebar
+        setSelectedContent={handleContentChange}
+        user={user}
+        roles={roles}
+      />
       <main className="flex-1">
         {isLoading ? (
           <Loader className="bg-blue-100 dark:bg-slate-950" />

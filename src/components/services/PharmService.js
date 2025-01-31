@@ -32,7 +32,10 @@ const PharmService = {
       Cookies.set("name", response.data.name);
       Cookies.set("roles", response.data.roles);
       Cookies.set("userId", response.data.userId);
-      if (response.data.roles.includes("FARMACIA") || response.data.roles.includes("GERENTE")) {
+      if (
+        response.data.roles.includes("FARMACIA") ||
+        response.data.roles.includes("GERENTE")
+      ) {
         Cookies.set("pharmacyId", response.data.idPharmacy);
       }
       return response.data;
@@ -78,7 +81,9 @@ const PharmService = {
   // Método para buscar um medicamento pela farmacia
   getMedicineByPharmacyId: async (pharmacyId) => {
     try {
-      const response = await axiosInstance.get(`/medicine/pharmacy/${pharmacyId}`);
+      const response = await axiosInstance.get(
+        `/medicine/pharmacy/${pharmacyId}`
+      );
       return response.data;
     } catch (error) {
       console.error("Erro ao buscar medicamento:", error);
@@ -89,14 +94,17 @@ const PharmService = {
   // Método para adicionar um novo medicamento
   addMedicine: async (medicineData) => {
     try {
-      const response = await axiosInstance.post("/medicineFarm/create", medicineData);
+      const response = await axiosInstance.post(
+        "/medicineFarm/create",
+        medicineData
+      );
       return response.data;
     } catch (error) {
       console.error("Network Error Details:", {
         message: error.message,
         code: error.code,
         config: error.config,
-        response: error.response
+        response: error.response,
       });
       throw error;
     }
@@ -134,84 +142,128 @@ const PharmService = {
       return response.data;
     } catch (error) {
       console.error("Erro ao verificar disponibilidade do medicamento:", error);
-      throw new Error(`Error checking medication availability. ${error.message}`);
+      throw new Error(
+        `Error checking medication availability. ${error.message}`
+      );
     }
   },
 
   createReservation: async (formData) => {
     try {
-      const response = await axiosInstance.post("/reservations/create", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      })
-      return response.data
+      const response = await axiosInstance.post(
+        "/reservations/create",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+      return response.data;
     } catch (error) {
-      console.error("Erro ao criar reserva:", error)
+      console.error("Erro ao criar reserva:", error);
       throw new Error(`Failed to create reservation. ${error.message}`);
     }
   },
 
   // PharmService.js
-getReservationsByUser: async () => {
-  try {
-    const response = await axiosInstance.get(`/reservations/user`, {
-      headers: {
-        Authorization: `Bearer ${Cookies.get("token")}`
-      }
-    });
-    return response.data;
-  } catch (error) {
-    console.error("Erro ao buscar reservas:", error);
-    throw error;
-  }
-},
+  getReservationsByUser: async () => {
+    try {
+      const response = await axiosInstance.get(`/reservations/user`, {
+        headers: {
+          Authorization: `Bearer ${Cookies.get("token")}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao buscar reservas:", error);
+      throw error;
+    }
+  },
 
-getAllReservations: async () => {
-  try {
-    const response = await axiosInstance.get("/reservations/list", {
-      headers: {
-        Authorization: `Bearer ${Cookies.get("token")}`
-      }
-    });
-    return response.data;
-  } catch (error) {
-    console.error("Erro ao buscar reservas:", error);
-    throw error;
-  }
-},
+  getAllReservations: async () => {
+    try {
+      const response = await axiosInstance.get("/reservations/list", {
+        headers: {
+          Authorization: `Bearer ${Cookies.get("token")}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao buscar reservas:", error);
+      throw error;
+    }
+  },
 
-cancelReservation: async (reservationId) => {
-  try {
-    await axiosInstance.post(`/reservations/cancel/${reservationId}`, null, {
-      headers: {
-        Authorization: `Bearer ${Cookies.get("token")}`
-      }
-    });
-  } catch (error) {
-    console.error("Erro ao cancelar reserva:", error);
-    throw error;
-  }
-},
+  cancelReservation: async (reservationId) => {
+    try {
+      await axiosInstance.post(`/reservations/cancel/${reservationId}`, null, {
+        headers: {
+          Authorization: `Bearer ${Cookies.get("token")}`,
+        },
+      });
+    } catch (error) {
+      console.error("Erro ao cancelar reserva:", error);
+      throw error;
+    }
+  },
 
-manageReservation: async (reservationId, status, message) => {
-  try {
-    await axiosInstance.post("/reservations/manage", null, {
-      params: {
-        reservationId,
-        status,
-        message
-      },
-      headers: {
-        Authorization: `Bearer ${Cookies.get("token")}`
-      }
-    });
-  } catch (error) {
-    console.error("Erro ao gerenciar reserva:", error);
-    throw error;
-  }
-}
+  manageReservation: async (reservationId, status, message) => {
+    try {
+      await axiosInstance.post("/reservations/manage", null, {
+        params: {
+          reservationId,
+          status,
+          message,
+        },
+        headers: {
+          Authorization: `Bearer ${Cookies.get("token")}`,
+        },
+      });
+    } catch (error) {
+      console.error("Erro ao gerenciar reserva:", error);
+      throw error;
+    }
+  },
 
+  createAlert: async (userId, stockId) => {
+    try {
+      const response = await axiosInstance.post(
+        `/medicines/alert/${userId}/${stockId}`
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao criar alerta:", error);
+      throw error;
+    }
+  },
+
+  getActiveAlerts: async () => {
+    try {
+      const response = await axiosInstance.get("/medicines/alert", {
+        headers: {
+          Authorization: `Bearer ${Cookies.get("token")}`,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao buscar alertas:", error);
+      throw error;
+    }
+  },
+
+  deleteAlert: async (alertId) => {
+    try {
+      await axiosInstance.delete(`/medicines/alert/${alertId}`, {
+        headers: {
+          Authorization: `Bearer ${Cookies.get("token")}`,
+        },
+      });
+    } catch (error) {
+      console.error("Erro ao deletar alerta:", error);
+      throw error;
+    }
+  },
 };
 
 export default PharmService;

@@ -10,11 +10,37 @@ import {
   FiLogOut,
 } from "react-icons/fi";
 import { useAuth } from "@/hooks/useAuth";
+import AlertsDrawer from "./AlertsDrawer";
+import PharmService from "../services/PharmService";
 
 const Sidebar = ({ setSelectedContent }) => {
   const [open, setOpen] = useState(true);
   const [selected, setSelected] = useState("Dashboard");
   const { user, logout } = useAuth();
+  const [alertsDrawerOpen, setAlertsDrawerOpen] = useState(false);
+  const [userAlerts, setUserAlerts] = useState([]);
+
+  // Função para carregar alertas
+  const loadAlerts = async () => {
+    try {
+      const alerts = await PharmService.getActiveAlerts();
+      console.log(alerts);
+      setUserAlerts(alerts);
+    } catch (error) {
+      console.error("Erro ao carregar alertas:", error);
+    }
+  };
+
+  // Função para deletar alerta
+  const handleDeleteAlert = async (alertId) => {
+    try {
+      await PharmService.deleteAlert(alertId);
+      setUserAlerts((prev) => prev.filter((alert) => alert.id !== alertId));
+      alert("Alerta removido com sucesso!");
+    } catch (error) {
+      alert(`Erro ao remover alerta: ${error.message}`);
+    }
+  };
 
   const handleOptionSelect = (title) => {
     setSelected(title);
@@ -46,7 +72,6 @@ const Sidebar = ({ setSelectedContent }) => {
             selected={selected}
             setSelected={handleOptionSelect}
             open={open}
-            notifs={3}
           />
           <Option
             Icon={FiMonitor}
@@ -54,6 +79,23 @@ const Sidebar = ({ setSelectedContent }) => {
             selected={selected}
             setSelected={handleOptionSelect}
             open={open}
+          />
+          <button
+            className="relative flex h-10 w-full items-center rounded-md transition-colors text-slate-500 hover:bg-slate-100 text-xs font-medium"
+            onClick={() => {
+              setAlertsDrawerOpen(true);
+              loadAlerts();
+            }}
+          >
+            Ver Alertas ({userAlerts.length})
+          </button>
+
+          {/* Drawer de Alertas */}
+          <AlertsDrawer
+            isOpen={alertsDrawerOpen}
+            onClose={() => setAlertsDrawerOpen(false)}
+            alerts={userAlerts}
+            onDeleteAlert={handleDeleteAlert}
           />
         </div>
       </div>
@@ -177,24 +219,20 @@ const Logout = ({ open, logout }) => {
       onClick={logout}
       className="flex items-center w-full p-3 text-slate-500 hover:bg-red-100 hover:text-red-600"
     >
-      <motion.div
+      <motion.div layout className=" place-content-center text-lg">
+        <FiLogOut className="mr-2 text-lg" />
+      </motion.div>
+      {open && (
+        <motion.span
           layout
-          className=" place-content-center text-lg"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.125 }}
+          className="text-sm "
         >
-          <FiLogOut
-            className="mr-2 text-lg" />
-        </motion.div>
-        {open && (
-          <motion.span
-            layout
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.125 }}
-            className="text-sm "
-          >
-            Sair
-          </motion.span>
-        )}
+          Sair
+        </motion.span>
+      )}
     </motion.button>
   );
 };
