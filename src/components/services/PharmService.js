@@ -264,6 +264,68 @@ const PharmService = {
       throw error;
     }
   },
+
+  // Método para buscar todos os funcionários (ADMIN)
+  getAllEmployees: async () => {
+    try {
+      const response = await axiosInstance.get("/pharmacies/employees/all");
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao buscar funcionários:", error);
+      throw error;
+    }
+  },
+
+  // Método para buscar funcionários de uma farmácia específica (GERENTE)
+  getPharmacyEmployees: async (pharmacyId) => {
+    try {
+      const response = await axiosInstance.get(
+        `/pharmacies/${pharmacyId}/employees`
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao buscar funcionários da farmácia:", error);
+      throw error;
+    }
+  },
+
+  // Método para adicionar um novo funcionário
+  addEmployee: async (pharmacyId, employeeEmail) => {
+    try {
+      const response = await axiosInstance.post("/pharmacies/employees/add", {
+        pharmacyId,
+        employeeEmail,
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao adicionar funcionário:", error);
+      throw error;
+    }
+  },
+
+  // Método para promover um funcionário a gerente
+  promoteEmployee: async (employeeId, pharmacyId) => {
+    try {
+      await axiosInstance.put(`/pharmacies/employees/${employeeId}/promote`, {
+        pharmacyId,
+      });
+    } catch (error) {
+      console.error("Erro ao promover funcionário:", error);
+      throw error;
+    }
+  },
+
+  // Método para demitir um funcionário
+  dismissEmployee: async (employeeId, pharmacyId) => {
+    try {
+      await axiosInstance.put(`/pharmacy/employees/${employeeId}/dismiss`, {
+        pharmacyId,
+      });
+    } catch (error) {
+      console.error("Erro ao demitir funcionário:", error);
+      throw error;
+    }
+  },
 };
 
 export default PharmService;

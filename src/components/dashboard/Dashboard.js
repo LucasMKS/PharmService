@@ -4,7 +4,8 @@ import { useAuth } from "@/hooks/useAuth";
 import Cookies from "js-cookie";
 import Sidebar from "./Sidebar";
 import TableContent from "./TableContent";
-import Reservation from "@/components/reservation/Reservation";
+import Reservation from "./Reservation";
+import EmployeeManagement from "./EmployeeManagement";
 import Teste2 from "@/components/dashboard/Feature";
 
 const Loader = () => (
@@ -26,7 +27,7 @@ export const Dashboard = () => {
   const contentMap = {
     Dashboard: <TableContent roles={roles} pharmacyId={pharmacyId} />,
     Reservas: <Reservation />,
-    Funcionarios: <Teste2 />,
+    Funcionarios: <EmployeeManagement />,
   };
 
   useEffect(() => {

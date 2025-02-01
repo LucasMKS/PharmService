@@ -143,8 +143,6 @@ const TableContent = ({ roles, pharmacyId }) => {
   const [reservationModalOpen, setReservationModalOpen] = useState(false);
   const [selectedMedicineForReservation, setSelectedMedicineForReservation] =
     useState(null);
-  const [alertsDrawerOpen, setAlertsDrawerOpen] = useState(false);
-  const [userAlerts, setUserAlerts] = useState([]);
 
   const {
     register,
@@ -164,33 +162,33 @@ const TableContent = ({ roles, pharmacyId }) => {
   );
 
   useEffect(() => {
-    const fetchMedications = async () => {
-      try {
-        let response;
-        if (roles === "FARMACIA" || roles === "GERENTE") {
-          if (pharmacyId) {
-            // Fetch medicines for specific pharmacy
-            response = await PharmService.getMedicineByPharmacyId(pharmacyId);
-          } else {
-            // Fallback to all medicines if no pharmacyId
-            response = await PharmService.getAllMedicines();
-          }
-        } else {
-          // For other roles, fetch all medicines
-          response = await PharmService.getAllMedicines();
-        }
-
-        setMedications(response);
-        setFilteredMedications(response);
-        setLoading(false);
-      } catch (err) {
-        setError("Falha ao buscar medicamentos");
-        setLoading(false);
-      }
-    };
-
     fetchMedications();
   }, [roles, pharmacyId]);
+
+  const fetchMedications = async () => {
+    try {
+      let response;
+      if (roles === "FARMACIA" || roles === "GERENTE") {
+        if (pharmacyId) {
+          // Fetch medicines for specific pharmacy
+          response = await PharmService.getMedicineByPharmacyId(pharmacyId);
+        } else {
+          // Fallback to all medicines if no pharmacyId
+          response = await PharmService.getAllMedicines();
+        }
+      } else {
+        // For other roles, fetch all medicines
+        response = await PharmService.getAllMedicines();
+      }
+
+      setMedications(response);
+      setFilteredMedications(response);
+      setLoading(false);
+    } catch (err) {
+      setError("Falha ao buscar medicamentos");
+      setLoading(false);
+    }
+  };
 
   const handleSearch = useCallback(
     debounce((term) => {
@@ -371,13 +369,8 @@ const TableContent = ({ roles, pharmacyId }) => {
                     <div className="modal-box">
                       <AddMedication
                         pharmacyId={pharmacyId}
-                        onMedicationAdded={async () => {
-                          const updatedMedications =
-                            await PharmService.getAllMedicines();
-                          setMedications(updatedMedications);
-                          setFilteredMedications(updatedMedications);
-                          document.getElementById("my_modal_5").close();
-                        }}
+                        onMedicationAdded={fetchMedications}
+                        roles={roles}
                       />
                       <div className="modal-action">
                         <button
