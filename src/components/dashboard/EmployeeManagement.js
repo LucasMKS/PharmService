@@ -104,104 +104,138 @@ const EmployeeManagement = () => {
   }
 
   return (
-    <div className="p-6 w-full">
-      <div className="bg-base-100 shadow-xl rounded-lg">
-        <div className="flex justify-between items-center p-4 border-b border-base-300">
-          <h2 className="text-2xl font-bold">Gerenciamento de Funcionários</h2>
-          <button
-            onClick={() => setIsAddDialogOpen(true)}
-            className="btn btn-primary"
-          >
-            <FiUserPlus className="mr-2" />
-            Adicionar Funcionário
-          </button>
-        </div>
+    <div className="bg-blue-100 dark:bg-slate-900 min-h-screen flex items-center justify-center p-6">
+      <div className="w-full max-w-6xl bg-neutral-600 dark:bg-neutral-900 rounded-lg shadow-lg shadow-neutral-950 overflow-hidden">
+        <div className="p-1.5 min-w-full inline-block align-middle ">
+          <div className=" divide-y dark:border-neutral-700 divide-gray-200 dark:divide-neutral-950">
+            <div className="py-3 px-4 bg-neutral-100 dark:bg-neutral-800 flex justify-between items-center">
+              <div className="relative">
+                <h2 className="text-2xl font-bold text-neutral-900 dark:text-neutral-200">
+                  Gerenciamento de Funcionários
+                </h2>
+              </div>
+              <button
+                onClick={() => setIsAddDialogOpen(true)}
+                className="btn btn-primary"
+              >
+                <FiUserPlus className="mr-2" />
+                Adicionar Funcionário
+              </button>
+            </div>
 
-        <div className="overflow-x-auto">
-          <table className="table table-zebra w-full">
-            <thead>
-              <tr>
-                <th>Nome</th>
-                <th>Email</th>
-                <th>Cargo</th>
-                {userRole === "ADMIN" && <th>Farmácia</th>}
-                <th className="text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {employees.map((employee) => (
-                <tr key={employee.id}>
-                  <td>{employee.name}</td>
-                  <td>{employee.email}</td>
-                  <td>
-                    {employee.roles?.includes("GERENTE")
-                      ? "Gerente"
-                      : employee.roles?.includes("FARMACIA")
-                      ? "Farmacêutico"
-                      : "Funcionário"}
-                  </td>
-                  {userRole === "ADMIN" && <td>{employee.pharmacyName}</td>}
-                  <td className="text-right space-x-2">
-                    {employee.roles?.includes("FARMACIA") && (
-                      <button
-                        onClick={() => handlePromote(employee.id)}
-                        className="btn btn-success btn-sm"
-                      >
-                        <FiUserCheck className="mr-1" />
-                        Promover
-                      </button>
-                    )}
-                    {(employee.roles?.includes("FARMACIA") ||
-                      employee.roles?.includes("GERENTE")) && (
-                      <button
-                        onClick={() => handleDismiss(employee.id)}
-                        className="btn btn-error btn-sm"
-                      >
-                        <FiUserX className="mr-1" />
-                        Demitir
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            <div className="overflow-hidden">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-neutral-700">
+                <thead className="bg-neutral-100 dark:bg-neutral-800">
+                  <tr>
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-gray-300"
+                    >
+                      Nome
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-gray-300"
+                    >
+                      Email
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-gray-300"
+                    >
+                      Cargo
+                    </th>
+                    {userRole === "ADMIN" && <th>Farmácia</th>}
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-gray-300"
+                    >
+                      Ações
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-neutral-200 dark:bg-neutral-800 divide-y divide-gray-200 dark:divide-neutral-950">
+                  {employees.map((employee) => (
+                    <tr key={employee.id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200">
+                        {employee.name}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200">
+                        {employee.email}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200">
+                        {employee.roles?.includes("GERENTE")
+                          ? "Gerente"
+                          : employee.roles?.includes("FARMACIA")
+                          ? "Farmacêutico"
+                          : "Funcionário"}
+                      </td>
+                      {userRole === "ADMIN" && <td>{employee.pharmacyName}</td>}
+                      <td className="p-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200">
+                        {employee.roles?.includes("FARMACIA") && (
+                          <button
+                            onClick={() => handlePromote(employee.id)}
+                            className="btn btn-success btn-sm mr-2"
+                          >
+                            <FiUserCheck className="mr-1" />
+                            Promover
+                          </button>
+                        )}
+                        {(employee.roles?.includes("FARMACIA") ||
+                          employee.roles?.includes("GERENTE")) && (
+                          <button
+                            onClick={() => handleDismiss(employee.id)}
+                            className="btn btn-error btn-sm"
+                          >
+                            <FiUserX className="mr-1" />
+                            Demitir
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Modal de Adicionar Funcionário */}
+            <dialog className={`modal ${isAddDialogOpen ? "modal-open" : ""}`}>
+              <div className="modal-box">
+                <h3 className="font-bold text-lg mb-4">
+                  Adicionar Novo Funcionário
+                </h3>
+                <div className="form-control">
+                  <input
+                    type="email"
+                    placeholder="Email do funcionário"
+                    className="input input-bordered w-full"
+                    value={newEmployeeEmail}
+                    onChange={(e) => setNewEmployeeEmail(e.target.value)}
+                  />
+                </div>
+                <div className="modal-action">
+                  <button
+                    className="btn btn-ghost"
+                    onClick={() => setIsAddDialogOpen(false)}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    className="btn btn-primary"
+                    onClick={handleAddEmployee}
+                    disabled={!newEmployeeEmail}
+                  >
+                    Adicionar
+                  </button>
+                </div>
+              </div>
+              <form method="dialog" className="modal-backdrop">
+                <button onClick={() => setIsAddDialogOpen(false)}>close</button>
+              </form>
+            </dialog>
+          </div>
         </div>
       </div>
-
-      {/* Modal de Adicionar Funcionário */}
-      <dialog className={`modal ${isAddDialogOpen ? "modal-open" : ""}`}>
-        <div className="modal-box">
-          <h3 className="font-bold text-lg mb-4">Adicionar Novo Funcionário</h3>
-          <div className="form-control">
-            <input
-              type="email"
-              placeholder="Email do funcionário"
-              className="input input-bordered w-full"
-              value={newEmployeeEmail}
-              onChange={(e) => setNewEmployeeEmail(e.target.value)}
-            />
-          </div>
-          <div className="modal-action">
-            <button
-              className="btn btn-ghost"
-              onClick={() => setIsAddDialogOpen(false)}
-            >
-              Cancelar
-            </button>
-            <button
-              className="btn btn-primary"
-              onClick={handleAddEmployee}
-              disabled={!newEmployeeEmail}
-            >
-              Adicionar
-            </button>
-          </div>
-        </div>
-        <form method="dialog" className="modal-backdrop">
-          <button onClick={() => setIsAddDialogOpen(false)}>close</button>
-        </form>
-      </dialog>
     </div>
   );
 };

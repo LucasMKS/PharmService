@@ -173,19 +173,6 @@ const Reservation = () => {
         response = await PharmService.getAllReservations();
       }
 
-      console.log(
-        "Reservas formatadas:",
-        response.map((r) => ({
-          id: r.id,
-          status: r.status,
-          medicineName:
-            r.stock?.medicine?.medicineName || "Medicamento não encontrado",
-          pharmacyName: r.stock?.pharmacy?.name || "Farmácia não encontrada",
-          createdAt:
-            new Date(r.expirationDate).toLocaleString() || "Data inválida",
-        }))
-      );
-
       setReservations(response);
       setLoading(false);
     } catch (err) {
@@ -221,7 +208,6 @@ const Reservation = () => {
     );
   });
 
-  // Reservation.js (no início do componente)
   const formatProtocol = (fileName) => {
     if (!fileName) return "N/A";
     return fileName.split(".").slice(0, -1).join("."); // Remove a extensão
@@ -259,150 +245,163 @@ const Reservation = () => {
 
   return (
     <div className="bg-blue-100 dark:bg-slate-900 min-h-screen flex items-center justify-center p-6">
-      <div className="bg-white dark:bg-neutral-800 rounded-lg shadow-md p-4">
-        <div className="flex justify-between items-center mb-4">
-          <input
-            type="text"
-            placeholder="Buscar reservas..."
-            className="input input-bordered w-56 max-w-xs h-10 dark:bg-neutral-700 dark:text-white"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
+      <div className="w-full max-w-7xl bg-neutral-600 dark:bg-neutral-900 rounded-lg shadow-lg shadow-neutral-950 overflow-hidden">
+        <div className="p-1.5 min-w-full inline-block align-middle">
+          <div className="divide-y divide-gray-200 dark:divide-neutral-950">
+            <div className="py-3 px-4 bg-neutral-100 dark:bg-neutral-800 flex justify-between items-center">
+              <div className="flex justify-between items-center mb-4">
+                <input
+                  type="text"
+                  placeholder="Buscar reservas..."
+                  className="input input-bordered w-56 max-w-xs h-10 dark:bg-neutral-700 dark:text-white"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+            </div>
 
-        <div className="overflow-hidden">
-          <table className=" min-w-full divide-y divide-gray-200 dark:divide-neutral-700">
-            <thead className="bg-neutral-100 dark:bg-neutral-800">
-              <tr>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-gray-300"
-                >
-                  Usuário
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-gray-300"
-                >
-                  Medicamento
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-gray-300"
-                >
-                  Farmácia
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-gray-300"
-                >
-                  Protocolo / Prescrição
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-gray-300"
-                >
-                  Status
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-gray-300"
-                >
-                  Data Expiração
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-gray-300"
-                >
-                  Ações
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {currentReservations.map((reservation) => {
-                const protocol = formatProtocol(reservation.prescriptionPath);
-                const medicineName =
-                  reservation.medicineName || "Não disponível";
-                const pharmacyName =
-                  reservation.pharmacyName || "Não disponível";
-                const expirationDate =
-                  new Date(reservation.expirationDate).toLocaleString() ||
-                  "Data inválida";
-
-                return (
-                  <tr
-                    key={reservation.id}
-                    className="dark:hover:bg-neutral-700"
-                  >
-                    <td className="dark:text-gray-300">
-                      <button
-                        className="text-blue-500 hover:text-blue-700 dark:text-blue-400"
-                        onClick={() => setSelectedUser(reservation.user)}
+            <div className="overflow-hidden">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-neutral-700">
+                <thead className="bg-neutral-100 dark:bg-neutral-800">
+                  <tr>
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-gray-300"
+                    >
+                      Usuário
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-gray-300"
+                    >
+                      Medicamento
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-gray-300"
+                    >
+                      Farmácia
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-gray-300"
+                    >
+                      Protocolo / Prescrição
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-gray-300"
+                    >
+                      Status
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-gray-300"
+                    >
+                      Data Expiração
+                    </th>
+                    {roles !== "CLIENTE" && (
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-gray-300"
                       >
-                        {reservation.user?.name || "N/A"}
-                      </button>
-                    </td>
-                    <td className="dark:text-gray-300">{medicineName}</td>
-                    <td className="dark:text-gray-300">{pharmacyName}</td>
-                    <td className="dark:text-gray-300">
-                      <a
-                        href={`http://localhost:8080/uploads/${reservation.prescriptionPath}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-500 hover:text-blue-700 dark:text-blue-400"
-                      >
-                        {protocol}
-                      </a>
-                    </td>
-                    <td>
-                      <StatusBadge status={reservation.status} />
-                    </td>
-                    <td className="dark:text-gray-300">{expirationDate}</td>
-                    <td>
-                      {roles !== "CLIENTE" && (
-                        <div className="flex space-x-2">
-                          <button
-                            className={
-                              reservation.status !== "pendente"
-                                ? "btn btn-sm btn-warning dark:bg-slate-800 dark:text-white"
-                                : "btn btn-sm btn-warning dark:bg-amber-600 dark:text-white"
-                            }
-                            onClick={() => {
-                              setSelectedReservation(reservation);
-                              setManageModalOpen(true);
-                            }}
-                            disabled={reservation.status !== "pendente"}
-                          >
-                            <FiEdit />
-                          </button>
-                        </div>
-                      )}
-                    </td>
+                        Ações
+                      </th>
+                    )}
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody className="bg-neutral-200 dark:bg-neutral-800 divide-y divide-gray-200 dark:divide-neutral-950">
+                  {currentReservations.map((reservation) => {
+                    const protocol = formatProtocol(
+                      reservation.prescriptionPath
+                    );
+                    const medicineName =
+                      reservation.medicineName || "Não disponível";
+                    const pharmacyName =
+                      reservation.pharmacyName || "Não disponível";
+                    const expirationDate =
+                      new Date(reservation.expirationDate).toLocaleString() ||
+                      "Data inválida";
 
-        <div className="flex justify-between items-center mt-4">
-          <button
-            className="btn btn-sm"
-            onClick={handlePrevPage}
-            disabled={currentPage === 1}
-          >
-            Anterior
-          </button>
-          <span>
-            Página {currentPage} de {totalPages}
-          </span>
-          <button
-            className="btn btn-sm"
-            onClick={handleNextPage}
-            disabled={currentPage === totalPages}
-          >
-            Próxima
-          </button>
+                    return (
+                      <tr key={reservation.id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200">
+                          <button
+                            className="text-blue-500 hover:text-blue-700 dark:text-blue-400"
+                            onClick={() => setSelectedUser(reservation.user)}
+                          >
+                            {reservation.user?.name || "N/A"}
+                          </button>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200">
+                          {medicineName}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200">
+                          {pharmacyName}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200">
+                          <a
+                            href={`http://localhost:8080/uploads/${reservation.prescriptionPath}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-500 hover:text-blue-700 dark:text-blue-400"
+                          >
+                            {protocol}
+                          </a>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200">
+                          <StatusBadge status={reservation.status} />
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200">
+                          {expirationDate}
+                        </td>
+                        {roles !== "CLIENTE" && (
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200">
+                            <div className="flex space-x-2">
+                              <button
+                                className={
+                                  reservation.status !== "pendente"
+                                    ? "btn btn-sm btn-warning dark:bg-slate-800 dark:text-white"
+                                    : "btn btn-sm btn-warning dark:bg-amber-600 dark:text-white"
+                                }
+                                onClick={() => {
+                                  setSelectedReservation(reservation);
+                                  setManageModalOpen(true);
+                                }}
+                                disabled={reservation.status !== "pendente"}
+                              >
+                                <FiEdit />
+                              </button>
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="py-2 px-4 bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center space-x-4">
+              <button
+                onClick={handlePrevPage}
+                disabled={currentPage === 1}
+                className="px-4 py-2 text-sm font-medium text-white bg-gray-600 hover:bg-gray-500 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Anterior
+              </button>
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Página {currentPage} de {totalPages}
+              </span>
+              <button
+                onClick={handleNextPage}
+                disabled={currentPage === totalPages}
+                className="px-4 py-2 text-sm font-medium text-white bg-gray-600 hover:bg-gray-500 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Próxima
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 

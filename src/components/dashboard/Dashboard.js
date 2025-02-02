@@ -6,7 +6,6 @@ import Sidebar from "./Sidebar";
 import TableContent from "./TableContent";
 import Reservation from "./Reservation";
 import EmployeeManagement from "./EmployeeManagement";
-import Teste2 from "@/components/dashboard/Feature";
 
 const Loader = () => (
   <div className="flex items-center justify-center h-screen bg-blue-100 dark:bg-slate-950 ">

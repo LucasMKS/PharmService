@@ -318,9 +318,9 @@ const PharmService = {
   // Método para demitir um funcionário
   dismissEmployee: async (employeeId, pharmacyId) => {
     try {
-      await axiosInstance.put(`/pharmacy/employees/${employeeId}/dismiss`, {
-        pharmacyId,
-      });
+      await axiosInstance.put(
+        `/pharmacies/employees/dismiss/${employeeId}/${pharmacyId}`
+      );
     } catch (error) {
       console.error("Erro ao demitir funcionário:", error);
       throw error;

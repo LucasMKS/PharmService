@@ -7,6 +7,15 @@ import PharmService from "../services/PharmService";
 import PharmacyModal from "./PharmacyModal";
 import AddMedication from "./AddMedication";
 import { debounce } from "lodash";
+import NProgress from "nprogress";
+
+// Configuração do NProgress
+NProgress.configure({
+  showSpinner: false,
+  minimum: 0.3,
+  easing: "ease",
+  speed: 800,
+});
 
 const ReservationModal = ({
   isOpen,
@@ -38,6 +47,8 @@ const ReservationModal = ({
     }
 
     setIsLoading(true);
+    NProgress.start();
+
     const formData = new FormData();
     formData.append("userId", userId);
     formData.append("stockId", medicineId);
@@ -46,9 +57,8 @@ const ReservationModal = ({
     try {
       const response = await PharmService.createReservation(formData);
       onReservationSuccess(medicineId);
-      alert(
-        `Reserva criada com sucesso! Protocolo: ${response.prescriptionPath}`
-      );
+      const protocol = formatProtocol(response.prescriptionPath);
+      alert(`Reserva criada com sucesso! Protocolo: ${protocol}`);
       onClose();
     } catch (error) {
       const errorMessage =
@@ -57,8 +67,21 @@ const ReservationModal = ({
       setError(errorMessage);
     } finally {
       setIsLoading(false);
+      NProgress.done();
     }
   };
+
+  const formatProtocol = (fileName) => {
+    if (!fileName) return "N/A";
+    return fileName.split(".").slice(0, -1).join("."); // Remove a extensão
+  };
+
+  // Limpa o NProgress quando o componente é desmontado
+  useEffect(() => {
+    return () => {
+      NProgress.done();
+    };
+  }, []);
 
   if (!isOpen) return null;
 
@@ -126,6 +149,18 @@ const ReservationModal = ({
           </div>
         </div>
       </dialog>
+
+      <style jsx>{`
+        /* Estilos customizados para o NProgress */
+        #nprogress .bar {
+          background: #4f46e5 !important;
+          height: 3px !important;
+        }
+
+        #nprogress .peg {
+          box-shadow: 0 0 10px #4f46e5, 0 0 5px #4f46e5 !important;
+        }
+      `}</style>
     </>
   );
 };
@@ -133,7 +168,6 @@ const ReservationModal = ({
 const TableContent = ({ roles, pharmacyId }) => {
   const [medications, setMedications] = useState([]);
   const [filteredMedications, setFilteredMedications] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedPharmacy, setSelectedPharmacy] = useState(null);
   const [selectedMedicine, setSelectedMedicine] = useState(null);
@@ -161,10 +195,6 @@ const TableContent = ({ roles, pharmacyId }) => {
     [medications]
   );
 
-  useEffect(() => {
-    fetchMedications();
-  }, [roles, pharmacyId]);
-
   const fetchMedications = async () => {
     try {
       let response;
@@ -183,12 +213,14 @@ const TableContent = ({ roles, pharmacyId }) => {
 
       setMedications(response);
       setFilteredMedications(response);
-      setLoading(false);
     } catch (err) {
       setError("Falha ao buscar medicamentos");
-      setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchMedications();
+  }, [roles, pharmacyId]);
 
   const handleSearch = useCallback(
     debounce((term) => {
@@ -287,26 +319,6 @@ const TableContent = ({ roles, pharmacyId }) => {
     setFilteredMedications(updatedMedications);
   };
 
-  const renderLoadingOrError = () => {
-    if (loading) {
-      return (
-        <div className="flex items-center justify-center w-full h-64 bg-neutral-500 text-white text-xl font-semibold">
-          Carregando medicamentos...
-        </div>
-      );
-    }
-
-    if (error) {
-      return (
-        <div className="flex items-center justify-center w-full h-64 bg-red-500 text-white text-xl font-semibold p-4 text-center">
-          {error}
-        </div>
-      );
-    }
-
-    return null;
-  };
-
   const handleAddClick = () => {
     document.getElementById("my_modal_5").showModal();
   };
@@ -343,9 +355,9 @@ const TableContent = ({ roles, pharmacyId }) => {
 
   return (
     <div className="bg-blue-100 dark:bg-slate-900 min-h-screen flex items-center justify-center p-6">
-      <div className="w-full max-w-6xl bg-neutral-600 dark:bg-neutral-300 rounded-lg shadow-lg overflow-hidden">
+      <div className="w-full max-w-6xl bg-neutral-600 dark:bg-neutral-900 rounded-lg shadow-lg shadow-neutral-950 overflow-hidden">
         <div className="p-1.5 min-w-full inline-block align-middle">
-          <div className="border rounded-lg divide-y dark:border-neutral-700 divide-gray-200 dark:divide-neutral-950">
+          <div className="divide-y divide-gray-200 dark:divide-neutral-950">
             <div className="py-3 px-4 bg-neutral-100 dark:bg-neutral-800 flex justify-between items-center">
               <div className="relative max-w-xs">
                 <input
@@ -366,24 +378,11 @@ const TableContent = ({ roles, pharmacyId }) => {
                     id="my_modal_5"
                     className="modal modal-bottom sm:modal-middle"
                   >
-                    <div className="modal-box">
-                      <AddMedication
-                        pharmacyId={pharmacyId}
-                        onMedicationAdded={fetchMedications}
-                        roles={roles}
-                      />
-                      <div className="modal-action">
-                        <button
-                          type="button"
-                          className="btn"
-                          onClick={() => {
-                            document.getElementById("my_modal_5").close();
-                          }}
-                        >
-                          Fechar
-                        </button>
-                      </div>
-                    </div>
+                    <AddMedication
+                      pharmacyId={pharmacyId}
+                      onMedicationAdded={fetchMedications}
+                      roles={roles}
+                    />
                   </dialog>
                 </div>
               )}
@@ -573,7 +572,6 @@ const TableContent = ({ roles, pharmacyId }) => {
                   />
                 </tbody>
               </table>
-              {renderLoadingOrError()}
             </div>
             <div className="py-2 px-4 bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center space-x-4">
               <button

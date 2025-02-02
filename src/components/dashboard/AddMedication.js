@@ -1,6 +1,7 @@
 import React from "react";
 import { useForm } from "react-hook-form";
 import PharmService from "../services/PharmService";
+import { FiBox, FiAlertCircle, FiHome } from "react-icons/fi";
 
 const AddMedication = ({ pharmacyId, onMedicationAdded, roles }) => {
   const {
@@ -58,75 +59,104 @@ const AddMedication = ({ pharmacyId, onMedicationAdded, roles }) => {
   };
 
   return (
-    <div>
-      <h3 className="font-bold text-lg">Registrar Medicamento</h3>
-      <p className="py-4">
-        Preencha as informações abaixo para adicionar o medicamento:
-      </p>
-      <form onSubmit={handleSubmit(handleAddMedication)} className="space-y-4">
-        <div>
-          <label
-            htmlFor="medicineName"
-            className="block text-sm font-medium text-gray-700"
-          >
-            Nome do Medicamento
+    <div className="p-8 px-24 bg-gray-300 dark:bg-gray-800 rounded-xl shadow-lg">
+      <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
+        Registrar Medicamento
+      </h3>
+
+      <form onSubmit={handleSubmit(handleAddMedication)} className="space-y-6">
+        <div className="form-control">
+          <label className="label">
+            <span className="label-text flex items-center gap-2 text-stone-700 dark:text-stone-300">
+              <FiBox className="text-lg" />
+              Nome do Medicamento
+            </span>
           </label>
           <input
-            id="medicineName"
             type="text"
-            className="input input-bordered w-full"
+            placeholder="Digite o nome do medicamento"
+            className={`input input-bordered w-full bg-stone-800 shadow-md shadow-stone-950 dark:bg-stone-800 dark:shadow-none  ${
+              errors.medicineName && "input-error"
+            }`}
             {...register("medicineName", { required: "Campo obrigatório" })}
           />
           {errors.medicineName && (
-            <p className="text-red-600 text-sm">
-              {errors.medicineName.message}
-            </p>
+            <label className="label">
+              <span className="label-text-alt text-error flex items-center gap-1">
+                <FiAlertCircle className="text-sm" />
+                {errors.medicineName.message}
+              </span>
+            </label>
           )}
         </div>
 
-        {/* Campo ID da Farmácia - Só mostra se NÃO for GERENTE */}
-        {roles !== "GERENTE" && (
-          <div>
-            <label
-              htmlFor="idPharmacy"
-              className="block text-sm font-medium text-gray-700"
-            >
-              ID da Farmácia
+        {/* Campo ID da Farmácia (condicional) */}
+        {roles == "ADMIN" && (
+          <div className="form-control">
+            <label className="label">
+              <span className="label-text flex items-center gap-2">
+                <FiHome className="text-lg" />
+                ID da Farmácia
+              </span>
             </label>
             <input
-              id="idPharmacy"
               type="number"
-              className="input input-bordered w-full"
+              placeholder="Digite o ID da farmácia"
+              className={`input input-bordered w-full${
+                errors.idPharmacy && "input-error"
+              }`}
               {...register("idPharmacy", { required: "Campo obrigatório" })}
             />
             {errors.idPharmacy && (
-              <p className="text-red-600 text-sm">
-                {errors.idPharmacy.message}
-              </p>
+              <label className="label">
+                <span className="label-text-alt text-error flex items-center gap-1">
+                  <FiAlertCircle className="text-sm" />
+                  {errors.idPharmacy.message}
+                </span>
+              </label>
             )}
           </div>
         )}
 
-        <div>
-          <label
-            htmlFor="quantity"
-            className="block text-sm font-medium text-gray-700"
-          >
-            Quantidade
+        <div className="form-control">
+          <label className="label">
+            <span className="label-text text-stone-700 dark:text-stone-300">
+              Quantidade
+            </span>
           </label>
           <input
-            id="quantity"
             type="number"
-            className="input input-bordered w-full"
+            placeholder="Digite a quantidade"
+            className={`input input-bordered w-full bg-stone-800 shadow-md shadow-stone-950 dark:bg-stone-800 dark:shadow-none ${
+              errors.quantity && "input-error"
+            }`}
             {...register("quantity", { required: "Campo obrigatório", min: 0 })}
           />
           {errors.quantity && (
-            <p className="text-red-600 text-sm">{errors.quantity.message}</p>
+            <label className="label">
+              <span className="label-text-alt text-error flex items-center gap-1">
+                <FiAlertCircle className="text-sm" />
+                {errors.quantity.message}
+              </span>
+            </label>
           )}
         </div>
-        <div className="modal-action">
-          <button type="submit" className="btn btn-primary">
+
+        <div className="space-y-1">
+          <button
+            type="submit"
+            className="btn w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+          >
             Salvar
+          </button>
+          <button
+            type="button"
+            className="btn w-full bg-zinc-900 hover:bg-zinc-800 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+            onClick={() => {
+              document.getElementById("my_modal_5").close();
+            }}
+          >
+            Fechar
           </button>
         </div>
       </form>

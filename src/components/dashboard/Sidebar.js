@@ -19,6 +19,7 @@ const Sidebar = ({ setSelectedContent }) => {
   const { user, logout } = useAuth();
   const [alertsDrawerOpen, setAlertsDrawerOpen] = useState(false);
   const [userAlerts, setUserAlerts] = useState([]);
+  const roles = user ? user.roles : "";
 
   // Função para carregar alertas
   const loadAlerts = async () => {
@@ -73,30 +74,38 @@ const Sidebar = ({ setSelectedContent }) => {
             setSelected={handleOptionSelect}
             open={open}
           />
-          <Option
-            Icon={FiMonitor}
-            title="Funcionarios"
-            selected={selected}
-            setSelected={handleOptionSelect}
-            open={open}
-          />
-          <button
-            className="relative flex h-10 w-full items-center rounded-md transition-colors text-slate-500 hover:bg-slate-100 text-xs font-medium"
-            onClick={() => {
-              setAlertsDrawerOpen(true);
-              loadAlerts();
-            }}
-          >
-            Ver Alertas ({userAlerts.length})
-          </button>
 
-          {/* Drawer de Alertas */}
-          <AlertsDrawer
-            isOpen={alertsDrawerOpen}
-            onClose={() => setAlertsDrawerOpen(false)}
-            alerts={userAlerts}
-            onDeleteAlert={handleDeleteAlert}
-          />
+          {roles == "GERENTE" && (
+            <Option
+              Icon={FiMonitor}
+              title="Funcionarios"
+              selected={selected}
+              setSelected={handleOptionSelect}
+              open={open}
+            />
+          )}
+
+          {roles == "CLIENTE" && (
+            <div>
+              <button
+                className="relative flex h-10 w-full items-center rounded-md transition-colors text-slate-500 hover:bg-slate-100 text-xs font-medium"
+                onClick={() => {
+                  setAlertsDrawerOpen(true);
+                  loadAlerts();
+                }}
+              >
+                Ver Alertas ({userAlerts.length})
+              </button>
+
+              {/* Drawer de Alertas */}
+              <AlertsDrawer
+                isOpen={alertsDrawerOpen}
+                onClose={() => setAlertsDrawerOpen(false)}
+                alerts={userAlerts}
+                onDeleteAlert={handleDeleteAlert}
+              />
+            </div>
+          )}
         </div>
       </div>
 
