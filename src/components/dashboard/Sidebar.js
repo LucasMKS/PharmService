@@ -6,37 +6,26 @@ import {
   FiMonitor,
   FiChevronDown,
   FiChevronsRight,
-  FiChevronLeft,
+  FiAlertCircle,
   FiLogOut,
 } from "react-icons/fi";
 import { useAuth } from "@/hooks/useAuth";
 import AlertsDrawer from "./AlertsDrawer";
 import PharmService from "../services/PharmService";
 
-const Sidebar = ({ setSelectedContent }) => {
+const Sidebar = ({ setSelectedContent, refreshAlerts, userAlerts }) => {
   const [open, setOpen] = useState(true);
   const [selected, setSelected] = useState("Dashboard");
   const { user, logout } = useAuth();
   const [alertsDrawerOpen, setAlertsDrawerOpen] = useState(false);
-  const [userAlerts, setUserAlerts] = useState([]);
   const roles = user ? user.roles : "";
-
-  // Função para carregar alertas
-  const loadAlerts = async () => {
-    try {
-      const alerts = await PharmService.getActiveAlerts();
-      console.log(alerts);
-      setUserAlerts(alerts);
-    } catch (error) {
-      console.error("Erro ao carregar alertas:", error);
-    }
-  };
 
   // Função para deletar alerta
   const handleDeleteAlert = async (alertId) => {
     try {
       await PharmService.deleteAlert(alertId);
-      setUserAlerts((prev) => prev.filter((alert) => alert.id !== alertId));
+      refreshAlerts(); // Atualiza via função do pai
+
       alert("Alerta removido com sucesso!");
     } catch (error) {
       alert(`Erro ao remover alerta: ${error.message}`);
@@ -86,18 +75,34 @@ const Sidebar = ({ setSelectedContent }) => {
           )}
 
           {roles == "CLIENTE" && (
-            <div>
+            <div className="relative">
               <button
-                className="relative flex h-10 w-full items-center rounded-md transition-colors text-slate-500 hover:bg-slate-100 text-xs font-medium"
                 onClick={() => {
                   setAlertsDrawerOpen(true);
-                  loadAlerts();
+                  refreshAlerts();
                 }}
+                className="group flex h-10 w-full items-center rounded-md transition-colors text-slate-500 hover:bg-slate-100 hover:text-slate-700"
               >
-                Ver Alertas ({userAlerts.length})
+                <div className="grid h-full w-10 place-content-center text-lg">
+                  <FiAlertCircle className="transition-transform group-hover:scale-110" />
+                </div>
+                {open && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex items-center gap-2"
+                  >
+                    <span className="text-xs font-medium">Ver Alertas</span>
+                    {userAlerts.length > 0 && (
+                      <span className="badge badge-sm badge-primary animate-pulse">
+                        {userAlerts.length}
+                      </span>
+                    )}
+                  </motion.div>
+                )}
               </button>
 
-              {/* Drawer de Alertas */}
+              {/* Drawer de Alertas mantido igual */}
               <AlertsDrawer
                 isOpen={alertsDrawerOpen}
                 onClose={() => setAlertsDrawerOpen(false)}

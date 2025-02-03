@@ -165,7 +165,7 @@ const ReservationModal = ({
   );
 };
 
-const TableContent = ({ roles, pharmacyId }) => {
+const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
   const [medications, setMedications] = useState([]);
   const [filteredMedications, setFilteredMedications] = useState([]);
   const [error, setError] = useState(null);
@@ -326,11 +326,11 @@ const TableContent = ({ roles, pharmacyId }) => {
   // Função para criar alerta
   const handleAlert = async (medication) => {
     try {
-      console.log(medication);
       const userId = Cookies.get("userId");
       if (!userId) throw new Error("Usuário não autenticado");
 
       await PharmService.createAlert(userId, medication.medicineId);
+      refreshAlerts();
       alert(
         "Alerta criado com sucesso! Você será notificado quando houver estoque."
       );
@@ -510,7 +510,7 @@ const TableContent = ({ roles, pharmacyId }) => {
                 </thead>
                 <tbody className="bg-neutral-200 dark:bg-neutral-800 divide-y divide-gray-200 dark:divide-neutral-950">
                   {currentMedications.map((medication) => (
-                    <tr key={medication.id}>
+                    <tr key={medication.medicineId}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200">
                         {medication.medicineName}
                       </td>

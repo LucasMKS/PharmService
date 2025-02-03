@@ -6,6 +6,7 @@ import Sidebar from "./Sidebar";
 import TableContent from "./TableContent";
 import Reservation from "./Reservation";
 import EmployeeManagement from "./EmployeeManagement";
+import PharmService from "../services/PharmService";
 
 const Loader = () => (
   <div className="flex items-center justify-center h-screen bg-blue-100 dark:bg-slate-950 ">
@@ -16,15 +17,43 @@ const Loader = () => (
 export const Dashboard = () => {
   const roles = Cookies.get("roles");
   const pharmacyId = Cookies.get("pharmacyId");
-  const [selectedContent, setSelectedContent] = useState(
-    <TableContent roles={roles} pharmacyId={pharmacyId} />
-  );
+  const [userAlerts, setUserAlerts] = useState([]);
   const [isPageLoading, setIsPageLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
 
+  // Função para atualizar alertas
+  const refreshAlerts = async () => {
+    try {
+      const alerts = await PharmService.getActiveAlerts();
+      setUserAlerts(alerts);
+    } catch (error) {
+      console.error("Erro ao atualizar alertas:", error);
+    }
+  };
+
+  // Agora inicialize o estado que usa a função
+  const [selectedContent, setSelectedContent] = useState(
+    <TableContent
+      roles={roles}
+      pharmacyId={pharmacyId}
+      refreshAlerts={refreshAlerts}
+    />
+  );
+
+  // Carrega alertas inicialmente
+  useEffect(() => {
+    if (user) refreshAlerts();
+  }, [user]);
+
   const contentMap = {
-    Dashboard: <TableContent roles={roles} pharmacyId={pharmacyId} />,
+    Dashboard: (
+      <TableContent
+        roles={roles}
+        pharmacyId={pharmacyId}
+        refreshAlerts={refreshAlerts}
+      />
+    ),
     Reservas: <Reservation />,
     Funcionarios: <EmployeeManagement />,
   };
@@ -60,6 +89,8 @@ export const Dashboard = () => {
         setSelectedContent={handleContentChange}
         user={user}
         roles={roles}
+        userAlerts={userAlerts} // Passa os alertas
+        refreshAlerts={refreshAlerts} // Passa a função
       />
       <main className="flex-1">
         {isLoading ? (
