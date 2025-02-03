@@ -306,9 +306,9 @@ const PharmService = {
   // Método para promover um funcionário a gerente
   promoteEmployee: async (employeeId, pharmacyId) => {
     try {
-      await axiosInstance.put(`/pharmacies/employees/${employeeId}/promote`, {
-        pharmacyId,
-      });
+      await axiosInstance.put(
+        `/pharmacies/employees/promote/${employeeId}/${pharmacyId}`
+      );
     } catch (error) {
       console.error("Erro ao promover funcionário:", error);
       throw error;

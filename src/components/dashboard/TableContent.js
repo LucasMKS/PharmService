@@ -86,10 +86,10 @@ const ReservationModal = ({
   if (!isOpen) return null;
 
   return (
-    <>
+    <div className="fixed inset-0 z-50 flex bg-black bg-opacity-50">
       <dialog
         id="reservation_modal"
-        className="modal modal-bottom sm:modal-middle"
+        className="modal modal-bottom sm:modal-middle shadow-lg shadow-neutral-950 "
         open
       >
         <div className="modal-box">
@@ -161,7 +161,7 @@ const ReservationModal = ({
           box-shadow: 0 0 10px #4f46e5, 0 0 5px #4f46e5 !important;
         }
       `}</style>
-    </>
+    </div>
   );
 };
 
@@ -441,7 +441,7 @@ const TableContent = ({ roles, pharmacyId }) => {
                       </p>
                     )}
                   </div>
-                  {roles !== "CLIENTE" && (
+                  {roles == "ADMIN" && (
                     <input
                       id="idPharmacy"
                       type="number"
@@ -455,10 +455,15 @@ const TableContent = ({ roles, pharmacyId }) => {
                   )}
 
                   <div className="modal-action">
-                    <form method="dialog">
-                      {/* if there is a button in form, it will close the modal */}
-                      <button className="btn">Close</button>
-                    </form>
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => {
+                        document.getElementById("edit_modal").close();
+                      }}
+                    >
+                      Fechar
+                    </button>
                     <button type="submit" className="btn btn-primary">
                       Salvar
                     </button>
@@ -563,15 +568,15 @@ const TableContent = ({ roles, pharmacyId }) => {
                       )}
                     </tr>
                   ))}
-                  <ReservationModal
-                    isOpen={reservationModalOpen}
-                    onClose={() => setReservationModalOpen(false)}
-                    medicineId={selectedMedicineForReservation?.medicineId}
-                    medicineName={selectedMedicineForReservation?.medicineName}
-                    onReservationSuccess={handleReservationSuccess}
-                  />
                 </tbody>
               </table>
+              <ReservationModal
+                isOpen={reservationModalOpen}
+                onClose={() => setReservationModalOpen(false)}
+                medicineId={selectedMedicineForReservation?.medicineId}
+                medicineName={selectedMedicineForReservation?.medicineName}
+                onReservationSuccess={handleReservationSuccess}
+              />
             </div>
             <div className="py-2 px-4 bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center space-x-4">
               <button

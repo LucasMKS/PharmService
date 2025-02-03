@@ -2,14 +2,29 @@ import React, { useState, useEffect } from "react";
 import { FiUserPlus, FiUserX, FiUserCheck } from "react-icons/fi";
 import Cookies from "js-cookie";
 import PharmService from "../services/PharmService";
+import NProgress from "nprogress";
+
+// Configuração do NProgress
+NProgress.configure({
+  showSpinner: false,
+  minimum: 0.3,
+  easing: "ease",
+  speed: 800,
+});
 
 const EmployeeManagement = () => {
   const [employees, setEmployees] = useState([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newEmployeeEmail, setNewEmployeeEmail] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [toast, setToast] = useState({ show: false, message: "", type: "" });
   const userRole = Cookies.get("roles");
   const pharmacyId = Cookies.get("pharmacyId");
+
+  const showToast = (message, type = "success") => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: "", type: "" }), 5000);
+  };
 
   useEffect(() => {
     fetchEmployees();
@@ -24,28 +39,24 @@ const EmployeeManagement = () => {
       setEmployees(data);
       setIsLoading(false);
     } catch (error) {
-      alert(
-        "Erro ao carregar funcionários: " +
-          (error.message ||
-            "Ocorreu um erro ao carregar a lista de funcionários.")
-      );
+      showToast(error.response?.data?.error, "error");
       setIsLoading(false);
     }
   };
 
   const handleAddEmployee = async () => {
+    NProgress.start();
     try {
       await PharmService.addEmployee(pharmacyId, newEmployeeEmail);
 
-      alert("Funcionário adicionado com sucesso!");
+      showToast("Funcionário adicionado com sucesso!");
       setIsAddDialogOpen(false);
       setNewEmployeeEmail("");
       fetchEmployees();
     } catch (error) {
-      alert(
-        "Erro ao adicionar funcionário: " +
-          (error.response?.data?.message || "Erro ao adicionar funcionário")
-      );
+      showToast(error.response?.data?.error, "error");
+    } finally {
+      NProgress.done();
     }
   };
 
@@ -53,13 +64,10 @@ const EmployeeManagement = () => {
     try {
       await PharmService.promoteEmployee(employeeId, pharmacyId);
 
-      alert("Funcionário promovido com sucesso!");
+      showToast("Funcionário promovido com sucesso!");
       fetchEmployees();
     } catch (error) {
-      alert(
-        "Erro ao promover funcionário: " +
-          (error.response?.data?.message || "Erro ao promover funcionário")
-      );
+      showToast(error.response?.data?.error, "error");
     }
   };
 
@@ -71,13 +79,10 @@ const EmployeeManagement = () => {
     try {
       await PharmService.dismissEmployee(employeeId, pharmacyId);
 
-      alert("Funcionário demitido com sucesso!");
+      showToast("Funcionário demitido com sucesso!");
       fetchEmployees();
     } catch (error) {
-      alert(
-        "Erro ao demitir funcionário: " +
-          (error.response?.data?.message || "Erro ao demitir funcionário")
-      );
+      showToast(error.response?.data?.error, "error");
     }
   };
 
@@ -236,6 +241,18 @@ const EmployeeManagement = () => {
           </div>
         </div>
       </div>
+
+      {toast.show && (
+        <div className={`toast toast-top toast-end z-50`}>
+          <div
+            className={`alert ${
+              toast.type === "error" ? "alert-error" : "alert-success"
+            }`}
+          >
+            <span>{toast.message}</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

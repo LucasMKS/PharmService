@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
-import NextTopLoader from "nextjs-toploader";
 import Cookies from "js-cookie";
 import PharmService from "../services/PharmService";
 import {
@@ -10,6 +9,15 @@ import {
   FiXCircle,
   FiEdit,
 } from "react-icons/fi";
+import NProgress from "nprogress";
+
+// Configuração do NProgress
+NProgress.configure({
+  showSpinner: false,
+  minimum: 0.3,
+  easing: "ease",
+  speed: 800,
+});
 
 const StatusBadge = ({ status }) => {
   const statusConfig = {
@@ -153,16 +161,21 @@ const UserInfoModal = ({ user, onClose }) => {
 const Reservation = () => {
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedReservation, setSelectedReservation] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [manageModalOpen, setManageModalOpen] = useState(false);
+  const [toast, setToast] = useState({ show: false, message: "", type: "" });
   const itemsPerPage = 10;
 
   const roles = Cookies.get("roles");
   const userId = Cookies.get("userId");
+
+  const showToast = (message, type = "success") => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: "", type: "" }), 3000);
+  };
 
   const fetchReservations = async () => {
     try {
@@ -175,9 +188,8 @@ const Reservation = () => {
 
       setReservations(response);
       setLoading(false);
-    } catch (err) {
-      console.error("Erro detalhado:", err.response?.data || err.message);
-      setError("Falha ao carregar reservas");
+    } catch (error) {
+      showToast("Falha ao carregar reservas: " + error.message, "error");
       setLoading(false);
     }
   };
@@ -187,12 +199,16 @@ const Reservation = () => {
   }, [roles]);
 
   const handleManage = async (reservationId, status, message) => {
+    NProgress.start();
+
     try {
       await PharmService.manageReservation(reservationId, status, message);
       fetchReservations();
-      alert("Reserva atualizada com sucesso!");
+      showToast("Reserva atualizada com sucesso!");
     } catch (error) {
-      alert("Erro ao atualizar reserva: " + error.message);
+      showToast("Erro ao atualizar reserva: " + error.message, "error");
+    } finally {
+      NProgress.done();
     }
   };
 
@@ -230,15 +246,6 @@ const Reservation = () => {
     return (
       <div className="flex items-center justify-center h-64">
         <span className="loading loading-spinner loading-lg"></span>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="alert alert-error mt-4">
-        <FiAlertCircle className="text-xl" />
-        {error}
       </div>
     );
   }
@@ -404,6 +411,18 @@ const Reservation = () => {
           </div>
         </div>
       </div>
+
+      {toast.show && (
+        <div className={`toast toast-top toast-end z-50`}>
+          <div
+            className={`alert ${
+              toast.type === "error" ? "alert-error" : "alert-success"
+            }`}
+          >
+            <span>{toast.message}</span>
+          </div>
+        </div>
+      )}
 
       <UserInfoModal
         user={selectedUser}
