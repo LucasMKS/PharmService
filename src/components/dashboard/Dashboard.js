@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { ClipLoader } from "react-spinners";
 import { useAuth } from "@/hooks/useAuth";
 import Cookies from "js-cookie";
@@ -9,79 +9,96 @@ import EmployeeManagement from "./EmployeeManagement";
 import PharmService from "../services/PharmService";
 
 const Loader = () => (
-  <div className="flex items-center justify-center h-screen bg-blue-100 dark:bg-slate-950 ">
+  <div className="flex items-center justify-center h-screen bg-blue-100 dark:bg-slate-950">
     <ClipLoader color="#4F46E5" size={50} />
   </div>
 );
 
+// Adicione um fallback de carregamento
+const LoadingFallback = () => (
+  <div className="flex justify-center items-center h-32">
+    <span className="loading loading-ring loading-lg text-primary"></span>
+  </div>
+);
+
+const CONTENT_MAP = {
+  Dashboard: TableContent,
+  Reservas: Reservation,
+  Funcionarios: EmployeeManagement,
+};
+
 export const Dashboard = () => {
+  const { user } = useAuth();
   const roles = Cookies.get("roles");
   const pharmacyId = Cookies.get("pharmacyId");
+
   const [userAlerts, setUserAlerts] = useState([]);
   const [isPageLoading, setIsPageLoading] = useState(true);
-  const [isLoading, setIsLoading] = useState(false);
-  const { user } = useAuth();
+  const [currentContent, setCurrentContent] = useState("Dashboard");
+  const [isContentLoading, setIsContentLoading] = useState(false);
 
-  // Função para atualizar alertas
-  const refreshAlerts = async () => {
+  // Memoize a função de refresh para evitar recriações desnecessárias
+  const refreshAlerts = useCallback(async () => {
     try {
       const alerts = await PharmService.getActiveAlerts();
       setUserAlerts(alerts);
     } catch (error) {
       console.error("Erro ao atualizar alertas:", error);
+      throw error;
     }
-  };
+  }, []);
 
-  // Agora inicialize o estado que usa a função
-  const [selectedContent, setSelectedContent] = useState(
-    <TableContent
-      roles={roles}
-      pharmacyId={pharmacyId}
-      refreshAlerts={refreshAlerts}
-    />
-  );
-
-  // Carrega alertas inicialmente
+  // Carregamento inicial
   useEffect(() => {
-    if (user) refreshAlerts();
-  }, [user]);
+    const initializeDashboard = async () => {
+      if (!user) return;
 
-  const contentMap = {
-    Dashboard: (
-      <TableContent
-        roles={roles}
-        pharmacyId={pharmacyId}
-        refreshAlerts={refreshAlerts}
-      />
-    ),
-    Reservas: <Reservation />,
-    Funcionarios: <EmployeeManagement />,
-  };
-
-  useEffect(() => {
-    const loadPage = async () => {
-      if (!user) return; // useAuth já redireciona, evite conflitos
-      await new Promise((resolve) => setTimeout(resolve, 500)); // Simula atraso no carregamento inicial
-      setIsPageLoading(false);
+      try {
+        await Promise.all([
+          refreshAlerts(),
+          new Promise((resolve) => setTimeout(resolve, 500)), // Simula carregamento
+        ]);
+      } finally {
+        setIsPageLoading(false);
+      }
     };
-    loadPage();
-  }, [user]);
 
-  if (isPageLoading) {
-    return <Loader className="bg-blue-100 dark:bg-slate-950" />; // Exibe o carregador global enquanto carrega tudo
+    initializeDashboard();
+  }, [user, refreshAlerts]);
+
+  // Manipulador de mudança de conteúdo
+  const handleContentChange = useCallback(async (title) => {
+    setIsContentLoading(true);
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      setCurrentContent(title);
+    } finally {
+      setIsContentLoading(false);
+    }
+  }, []);
+
+  // Modifique a função renderContent
+  const renderContent = useCallback(() => {
+    const ContentComponent = CONTENT_MAP[currentContent];
+
+    return (
+      <Suspense fallback={<LoadingFallback />}>
+        {currentContent === "Dashboard" ? (
+          <ContentComponent
+            roles={roles}
+            pharmacyId={pharmacyId}
+            refreshAlerts={refreshAlerts}
+          />
+        ) : (
+          <ContentComponent />
+        )}
+      </Suspense>
+    );
+  }, [currentContent, roles, pharmacyId, refreshAlerts]);
+
+  if (isPageLoading || !user) {
+    return <Loader className="bg-blue-100 dark:bg-slate-950" />;
   }
-
-  if (!user) {
-    return null; // O useAuth já cuida do redirecionamento
-  }
-
-  const handleContentChange = (title) => {
-    setIsLoading(true);
-    setTimeout(() => {
-      setSelectedContent(contentMap[title]);
-      setIsLoading(false);
-    }, 500); // Simulating a 500ms load time
-  };
 
   return (
     <div className="flex bg-indigo-50">
@@ -89,14 +106,17 @@ export const Dashboard = () => {
         setSelectedContent={handleContentChange}
         user={user}
         roles={roles}
-        userAlerts={userAlerts} // Passa os alertas
-        refreshAlerts={refreshAlerts} // Passa a função
+        userAlerts={userAlerts}
+        refreshAlerts={refreshAlerts}
       />
+
       <main className="flex-1">
-        {isLoading ? (
-          <Loader className="bg-blue-100 dark:bg-slate-950" />
+        {isContentLoading ? (
+          <div className="flex items-center justify-center h-full bg-blue-100 dark:bg-slate-950">
+            <ClipLoader color="#4F46E5" size={40} />
+          </div>
         ) : (
-          selectedContent
+          renderContent()
         )}
       </main>
     </div>
