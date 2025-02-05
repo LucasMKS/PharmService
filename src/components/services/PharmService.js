@@ -1,7 +1,8 @@
 import axios from "axios";
 import Cookies from "js-cookie";
 
-const API_BASE_URL = "http://localhost:8080/api";
+// const API_BASE_URL = "http://localhost:8080/api";
+const API_BASE_URL = "https://pharm-service-api-629de3f47ddb.herokuapp.com/api";
 
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
