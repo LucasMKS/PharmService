@@ -1,7 +1,7 @@
 import React from "react";
 import { useForm } from "react-hook-form";
 import PharmService from "../services/PharmService";
-import { FiBox, FiAlertCircle, FiHome } from "react-icons/fi";
+import { FiBox, FiAlertCircle, FiHome, FiPlus, FiX } from "react-icons/fi";
 
 const AddMedication = ({ pharmacyId, onMedicationAdded, roles }) => {
   const {
@@ -59,107 +59,112 @@ const AddMedication = ({ pharmacyId, onMedicationAdded, roles }) => {
   };
 
   return (
-    <div className="p-8 px-24 bg-gray-300 dark:bg-gray-800 rounded-xl shadow-lg">
-      <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6">
-        Registrar Medicamento
-      </h3>
+    <div className="modal-box relative max-w-md bg-gradient-to-br from-blue-50 to-white dark:from-gray-800 dark:to-gray-900 shadow-2xl p-8">
+      <button
+        onClick={() => document.getElementById("my_modal_5").close()}
+        className="btn btn-sm btn-circle absolute right-4 top-4 text-gray-500 hover:text-blue-600"
+      >
+        <FiX className="text-lg" />
+      </button>
 
-      <form onSubmit={handleSubmit(handleAddMedication)} className="space-y-6">
-        <div className="form-control">
-          <label className="label">
-            <span className="label-text flex items-center gap-2 text-stone-700 dark:text-stone-300">
-              <FiBox className="text-lg" />
-              Nome do Medicamento
-            </span>
-          </label>
-          <input
-            type="text"
-            placeholder="Digite o nome do medicamento"
-            className={`input input-bordered w-full bg-stone-800 shadow-md shadow-stone-950 dark:bg-stone-800 dark:shadow-none  ${
-              errors.medicineName && "input-error"
-            }`}
-            {...register("medicineName", { required: "Campo obrigatório" })}
-          />
-          {errors.medicineName && (
-            <label className="label">
-              <span className="label-text-alt text-error flex items-center gap-1">
-                <FiAlertCircle className="text-sm" />
-                {errors.medicineName.message}
-              </span>
-            </label>
-          )}
+      <div className="text-center space-y-6">
+        <div className="inline-block p-3 bg-blue-100 dark:bg-gray-700 rounded-full">
+          <FiPlus className="w-6 h-6 text-blue-600 dark:text-blue-400" />
         </div>
 
-        {/* Campo ID da Farmácia (condicional) */}
-        {roles == "ADMIN" && (
+        <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-100">
+          Cadastrar Novo Medicamento
+        </h3>
+
+        <form
+          onSubmit={handleSubmit(handleAddMedication)}
+          className="space-y-4"
+        >
           <div className="form-control">
-            <label className="label">
-              <span className="label-text flex items-center gap-2">
-                <FiHome className="text-lg" />
-                ID da Farmácia
+            <label className="label justify-start gap-2 pl-1">
+              <FiBox className="w-5 h-5 text-blue-500 dark:text-blue-400" />
+              <span className="label-text text-gray-600 dark:text-gray-300">
+                Nome do Medicamento
+              </span>
+            </label>
+            <input
+              type="text"
+              placeholder="Ex: Paracetamol 500mg"
+              className={`input input-bordered w-full bg-white dark:bg-gray-700 focus:ring-2 focus:ring-blue-300 ${
+                errors.medicineName && "input-error"
+              }`}
+              {...register("medicineName", { required: "Campo obrigatório" })}
+            />
+            {errors.medicineName && (
+              <div className="flex items-center gap-2 mt-2 text-error">
+                <FiAlertCircle className="text-sm" />
+                <span className="text-sm">{errors.medicineName.message}</span>
+              </div>
+            )}
+          </div>
+
+          {roles === "ADMIN" && (
+            <div className="form-control">
+              <label className="label justify-start gap-2 pl-1">
+                <FiHome className="w-5 h-5 text-blue-500 dark:text-blue-400" />
+                <span className="label-text text-gray-600 dark:text-gray-300">
+                  ID da Farmácia
+                </span>
+              </label>
+              <input
+                type="number"
+                placeholder="Ex: 123"
+                className={`input input-bordered w-full bg-white dark:bg-gray-700 focus:ring-2 focus:ring-blue-300 ${
+                  errors.idPharmacy && "input-error"
+                }`}
+                {...register("idPharmacy", { required: "Campo obrigatório" })}
+              />
+              {errors.idPharmacy && (
+                <div className="flex items-center gap-2 mt-2 text-error">
+                  <FiAlertCircle className="text-sm" />
+                  <span className="text-sm">{errors.idPharmacy.message}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="form-control">
+            <label className="label justify-start gap-2 pl-1">
+              <FiBox className="w-5 h-5 text-blue-500 dark:text-blue-400" />
+              <span className="label-text text-gray-600 dark:text-gray-300">
+                Quantidade Inicial
               </span>
             </label>
             <input
               type="number"
-              placeholder="Digite o ID da farmácia"
-              className={`input input-bordered w-full${
-                errors.idPharmacy && "input-error"
+              placeholder="Ex: 50"
+              className={`input input-bordered w-full bg-white dark:bg-gray-700 focus:ring-2 focus:ring-blue-300 ${
+                errors.quantity && "input-error"
               }`}
-              {...register("idPharmacy", { required: "Campo obrigatório" })}
+              {...register("quantity", {
+                required: "Campo obrigatório",
+                min: { value: 0, message: "Valor mínimo é 0" },
+              })}
             />
-            {errors.idPharmacy && (
-              <label className="label">
-                <span className="label-text-alt text-error flex items-center gap-1">
-                  <FiAlertCircle className="text-sm" />
-                  {errors.idPharmacy.message}
-                </span>
-              </label>
+            {errors.quantity && (
+              <div className="flex items-center gap-2 mt-2 text-error">
+                <FiAlertCircle className="text-sm" />
+                <span className="text-sm">{errors.quantity.message}</span>
+              </div>
             )}
           </div>
-        )}
 
-        <div className="form-control">
-          <label className="label">
-            <span className="label-text text-stone-700 dark:text-stone-300">
-              Quantidade
-            </span>
-          </label>
-          <input
-            type="number"
-            placeholder="Digite a quantidade"
-            className={`input input-bordered w-full bg-stone-800 shadow-md shadow-stone-950 dark:bg-stone-800 dark:shadow-none ${
-              errors.quantity && "input-error"
-            }`}
-            {...register("quantity", { required: "Campo obrigatório", min: 0 })}
-          />
-          {errors.quantity && (
-            <label className="label">
-              <span className="label-text-alt text-error flex items-center gap-1">
-                <FiAlertCircle className="text-sm" />
-                {errors.quantity.message}
-              </span>
-            </label>
-          )}
-        </div>
-
-        <div className="space-y-1">
-          <button
-            type="submit"
-            className="btn w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
-          >
-            Salvar
-          </button>
-          <button
-            type="button"
-            className="btn w-full bg-zinc-900 hover:bg-zinc-800 text-white font-medium py-2 px-4 rounded-lg transition-colors"
-            onClick={() => {
-              document.getElementById("my_modal_5").close();
-            }}
-          >
-            Fechar
-          </button>
-        </div>
-      </form>
+          <div className="flex gap-3 mt-8">
+            <button
+              type="submit"
+              className="btn btn-primary flex-1 gap-2 hover:scale-[1.02] transition-transform"
+            >
+              <FiPlus className="text-lg" />
+              Cadastrar Medicamento
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };

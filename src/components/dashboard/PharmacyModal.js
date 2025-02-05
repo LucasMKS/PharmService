@@ -1,54 +1,76 @@
 import React from "react";
+import {
+  FiMapPin,
+  FiHome,
+  FiGlobe,
+  FiMail,
+  FiPhone,
+  FiX,
+} from "react-icons/fi";
 
 const PharmacyModal = ({ pharmacy, onClose }) => {
   if (!pharmacy) return null;
 
   return (
-    <div
-      className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full"
-      onClick={onClose}
-    >
-      <div
-        className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mt-3 text-center">
-          <h3 className="text-lg leading-6 font-medium text-gray-900">
+    <div className="fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="modal-box relative max-w-md bg-gradient-to-br from-blue-50 to-white dark:from-gray-800 dark:to-gray-900 shadow-2xl">
+        <button
+          onClick={onClose}
+          className="btn btn-sm btn-circle absolute right-4 top-4 text-gray-500 hover:text-blue-600"
+        >
+          <FiX className="text-lg" />
+        </button>
+
+        <div className="text-center space-y-4">
+          <div className="inline-block p-3 bg-blue-100 dark:bg-gray-700 rounded-full mb-2">
+            <FiHome className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+          </div>
+
+          <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-4">
             {pharmacy.name}
           </h3>
-          <div className="mt-2 px-7 py-3">
-            <p className="text-sm text-gray-500">
-              Endereço: {pharmacy.address}, {pharmacy.number}
-            </p>
-            <p className="text-sm text-gray-500">
-              Bairro: {pharmacy.neighborhood || "N/A"}
-            </p>
-            <p className="text-sm text-gray-500">
-              Cidade: {pharmacy.city || "N/A"}
-            </p>
-            <p className="text-sm text-gray-500">
-              Estado: {pharmacy.state || "N/A"}
-            </p>
-            <p className="text-sm text-gray-500">
-              CEP: {pharmacy.zipCode || "N/A"}
-            </p>
-            <p className="text-sm text-gray-500">
-              Telefone: {pharmacy.phone || "N/A"}
-            </p>
-          </div>
-          <div className="items-center px-4 py-3">
-            <button
-              id="ok-btn"
-              className="px-4 py-2 bg-blue-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
-              onClick={onClose}
-            >
-              Fechar
-            </button>
+
+          <div className="space-y-3 text-left ">
+            <InfoItem icon={<FiMapPin />} label="Endereço">
+              {pharmacy.address}, {pharmacy.number}
+            </InfoItem>
+
+            <InfoItem icon={<FiMapPin />} label="Bairro">
+              {pharmacy.neighborhood || "N/A"}
+            </InfoItem>
+
+            <div className="grid grid-cols-2 gap-4">
+              <InfoItem icon={<FiGlobe />} label="Cidade/Estado">
+                {`${pharmacy.city || "N/A"}/${pharmacy.state || "N/A"}`}
+              </InfoItem>
+
+              <InfoItem icon={<FiMail />} label="CEP">
+                {pharmacy.zipCode || "N/A"}
+              </InfoItem>
+            </div>
+
+            <InfoItem icon={<FiPhone />} label="Telefone">
+              {pharmacy.phone || "N/A"}
+            </InfoItem>
           </div>
         </div>
       </div>
     </div>
   );
 };
+
+const InfoItem = ({ icon, label, children }) => (
+  <div className="flex items-start gap-3 p-3 bg-white dark:bg-gray-700 rounded-lg border border-gray-100 dark:border-neutral-500 shadow-sm">
+    <span className="text-blue-600 dark:text-blue-400 mt-1">{icon}</span>
+    <div>
+      <p className="text-xs font-semibold text-gray-500 dark:text-neutral-400 mb-1">
+        {label}
+      </p>
+      <p className="text-sm text-gray-700 dark:text-neutral-300 font-medium">
+        {children}
+      </p>
+    </div>
+  </div>
+);
 
 export default PharmacyModal;

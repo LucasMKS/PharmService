@@ -326,6 +326,41 @@ const PharmService = {
       throw error;
     }
   },
+
+  forgotPassword: async (email) => {
+    console.log(email);
+    try {
+      const formData = new URLSearchParams();
+      formData.append("email", email);
+
+      await axiosInstance.post("/auth/forgot-password", formData, {
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      });
+    } catch (error) {
+      console.error("Erro ao demitir funcionário:", error);
+      throw error;
+    }
+  },
+
+  resetPassword: async (token, newPassword) => {
+    console.log(token, newPassword);
+    const formData = new URLSearchParams();
+    formData.append("newPassword", newPassword);
+    formData.append("token", token);
+
+    try {
+      await axiosInstance.post(`/auth/reset-password`, formData, {
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      });
+    } catch (error) {
+      console.error("Erro ao redefinir senha:", error);
+      throw error;
+    }
+  },
 };
 
 export default PharmService;

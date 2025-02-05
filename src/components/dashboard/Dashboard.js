@@ -124,3 +124,5 @@ export const Dashboard = () => {
 };
 
 export default Dashboard;
+
+// Deixar a mudança de pagina mais suavizada
