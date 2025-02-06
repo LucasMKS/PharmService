@@ -41,12 +41,11 @@ export default function LoginPage() {
         alert("E-mail de recuperação enviado! Verifique sua caixa de entrada.");
         setShowForgotPassword(false);
       } else {
-        const response = isLogin
+        isLogin
           ? await PharmService.login(data)
           : await PharmService.register(data);
 
         router.push("/dashboard");
-        handleNavigation(response.roles);
       }
     } catch (error) {
       setError(
