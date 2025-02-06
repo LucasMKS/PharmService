@@ -19,10 +19,10 @@ const ReservationModal = ({
     const file = e.target.files[0];
     setSelectedFile(file);
   };
-
   const formatProtocol = (fileName) => {
     if (!fileName) return "N/A";
-    return fileName.split(".").slice(0, -1).join("."); // Remove a extensão
+    const protocol = fileName.split("/").pop(); // Pega o último segmento
+    return protocol.split("_")[0]; // Pega a parte antes do primeiro "_"
   };
 
   const handleReservation = async () => {
