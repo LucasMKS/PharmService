@@ -1,4 +1,4 @@
-import { Inter, Roboto, Alkatra, Roboto_Condensed } from "next/font/google";
+import { Inter, Roboto, Alkatra, Raleway, Ubuntu } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import NextTopLoader from "nextjs-toploader";
 import { Suspense } from "react"; // Adicionado
@@ -25,10 +25,16 @@ const alkatra = Alkatra({
   weight: "500",
 });
 
-const roboto_Condensed = Roboto_Condensed({
+const raleway = Raleway({
   subsets: ["latin"],
-  variable: "--font-roboto_Condensed",
-  weight: ["300", "400", "700"],
+  variable: "--font-raleway",
+  weight: "500",
+});
+
+const ubuntu = Ubuntu({
+  subsets: ["latin"],
+  variable: "--font-ubuntu",
+  weight: "500",
 });
 
 export const metadata = {
@@ -49,7 +55,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <body
-        className={`${inter.variable} ${roboto.variable} ${alkatra.variable} ${roboto_Condensed.variable}`}
+        className={`${inter.variable} ${roboto.variable} ${alkatra.variable} ${raleway.variable} ${ubuntu.variable}`}
       >
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <NextTopLoader />

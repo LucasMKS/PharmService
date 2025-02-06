@@ -204,14 +204,14 @@ const Logo = () => {
   return (
     <motion.div
       layout
-      className="grid size-10 shrink-0 place-content-center rounded-md bg-indigo-600"
+      className="grid size-10 shrink-0 place-content-center rounded-md "
     >
       <Image
-        src="/images/logo.png" // Caminho para a imagem dentro da pasta public
-        width={170} // Largura da imagem
-        height={260} // Altura da imagem
+        src="/images/pharm/pharm.png"
+        width={170}
+        height={260}
         alt="Logo"
-        className="fill-slate-50" // Caso queira aplicar classes do Tailwind
+        className="fill-slate-50"
       />
     </motion.div>
   );

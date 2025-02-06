@@ -12,7 +12,6 @@ import {
   FiMail,
   FiUser,
   FiArrowRight,
-  FiLogIn,
   FiAlertCircle,
 } from "react-icons/fi";
 
@@ -59,10 +58,10 @@ export default function LoginPage() {
   return (
     <section className="bg-white dark:bg-gray-900">
       <div className="lg:grid lg:min-h-screen lg:grid-cols-12">
-        <section className="relative flex h-32 items-end bg-gray-900 lg:col-span-5 lg:h-full xl:col-span-6">
+        <section className="relative flex h-32 items-end bg-gray-900 lg:col-span-5 lg:h-full xl:col-span-6 border-r-2 border-neutral-800">
           <Image
             alt="Night"
-            src="https://images.unsplash.com/photo-1617195737496-bc30194e3a19?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=870&q=80"
+            src="/images/login/img4.jpg"
             className="absolute inset-0 h-full w-full object-cover opacity-80"
             layout="fill"
           />
@@ -71,21 +70,22 @@ export default function LoginPage() {
             <Link href="/" className="block text-white">
               <span className="sr-only">Home</span>
               <Image
-                src="/images/logo.png" // Caminho para a imagem dentro da pasta public
-                width={170} // Largura da imagem
-                height={260} // Altura da imagem
+                src="/images/pharm/PharmService.png" //
+                width={170}
+                height={260}
                 alt="Logo"
-                className="fill-slate-50" // Caso queira aplicar classes do Tailwind
+                className="fill-slate-50 rounded-2xl"
               />
             </Link>
 
             <h2 className="mt-6 text-2xl font-bold text-white sm:text-3xl md:text-4xl">
-              Bem-vindo ao PharmStock 🏥
+              Bem-vindo ao PharmService 🏥
             </h2>
 
             <p className="mt-4 leading-relaxed text-white/90">
-              Gerencie seu estoque farmacêutico de forma eficiente e ajude seus
-              clientes a encontrar os medicamentos que precisam.
+              Encontre os medicamentos que precisa ou gerencie o estoque da sua
+              farmácia de forma eficiente. <br /> Conectamos clientes e
+              farmácias para facilitar o acesso a remédios!
             </p>
           </div>
         </section>
@@ -93,8 +93,15 @@ export default function LoginPage() {
         <main className="flex items-center justify-center px-8 py-8 sm:px-12 lg:col-span-7 lg:px-16 lg:py-12 xl:col-span-6 ">
           <div className="w-full max-w-xl lg:max-w-3xl bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
             <div className="text-center mb-8">
-              <div className="inline-block p-3 bg-blue-100 dark:bg-gray-700 rounded-full mb-4">
-                <FiLogIn className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+              <div className="inline-block p-3">
+                <span className="sr-only">Home</span>
+                <Image
+                  src="/images/pharm/PharmServiceInv.png" //
+                  width={60}
+                  height={48}
+                  alt="Logo"
+                  className="fill-slate-50 rounded-2xl"
+                />
               </div>
 
               <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
