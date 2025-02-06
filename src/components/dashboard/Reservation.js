@@ -226,7 +226,11 @@ const Reservation = () => {
 
   const formatProtocol = (fileName) => {
     if (!fileName) return "N/A";
-    return fileName.split(".").slice(0, -1).join("."); // Remove a extensão
+    const protocol = fileName.split("/").pop();
+
+    const nameWithoutExtension = protocol.split(".").slice(0, -1).join(".");
+
+    return nameWithoutExtension.split("_")[0];
   };
 
   // Paginação
@@ -348,7 +352,7 @@ const Reservation = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200">
                           <a
-                            href={`http://localhost:8080/uploads/${reservation.prescriptionPath}`}
+                            href={`${reservation.prescriptionPath}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-500 hover:text-blue-700 dark:text-blue-400"
