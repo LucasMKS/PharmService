@@ -1,10 +1,11 @@
-import { Inter, Roboto, Alkatra, Raleway, Ubuntu } from "next/font/google";
+import { Inter, Roboto, Alkatra, Raleway } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import NextTopLoader from "nextjs-toploader";
-import { Suspense } from "react"; // Adicionado
+import { Suspense } from "react";
 import "./globals.css";
 import Footer from "@components/Footer";
 import ThemeSwitcher from "@components/theme/ThemeSwitcher";
+import BlockMobile from "@/components/mobile/BlockMobile";
 
 // Fontes (mantidas iguais)
 const inter = Inter({
@@ -31,12 +32,6 @@ const raleway = Raleway({
   weight: "500",
 });
 
-const ubuntu = Ubuntu({
-  subsets: ["latin"],
-  variable: "--font-ubuntu",
-  weight: "500",
-});
-
 export const metadata = {
   title: "PharmStock",
   description: "Gerenciamento de estoque farmacêutico",
@@ -55,8 +50,9 @@ export default function RootLayout({ children }) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <body
-        className={`${inter.variable} ${roboto.variable} ${alkatra.variable} ${raleway.variable} ${ubuntu.variable}`}
+        className={`${inter.variable} ${roboto.variable} ${alkatra.variable} ${raleway.variable} `}
       >
+        <BlockMobile />
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <NextTopLoader />
           <ThemeSwitcher />

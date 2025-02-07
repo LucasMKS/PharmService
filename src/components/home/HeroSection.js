@@ -10,13 +10,13 @@ export default function First() {
         <div className="max-w-xl text-center ltr:sm:text-left rtl:sm:text-right">
           <h1 className="text-3xl font-extrabold text-blue-300 sm:text-5xl">
             Pharm
-            <strong className=" font-extrabold text-rose-500">Stock.</strong>
+            <strong className=" font-extrabold text-rose-500">Service.</strong>
           </h1>
 
           <p className="mt-4 max-w-xl text-white sm:text-xl/relaxed">
-            PharmStock revoluciona a gestão de estoque farmacêutico, permitindo
-            que usuários verifiquem a disponibilidade de medicamentos em tempo
-            real, reduzindo deslocamentos desnecessários e otimizando o
+            PharmService revoluciona a gestão de estoque farmacêutico,
+            permitindo que usuários verifiquem a disponibilidade de medicamentos
+            em tempo real, reduzindo deslocamentos desnecessários e otimizando o
             atendimento ao cliente.
           </p>
 
