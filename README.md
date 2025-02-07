@@ -1,36 +1,41 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Pharm Service
 
-## Getting Started
+![](https://res.cloudinary.com/dy5aauric/image/upload/v1738934806/My%20Brand/edg7am8ibpy4aksxiedv.png)
 
-First, run the development server:
+## Sobre o Projeto
+O **Pharm Service** é um sistema de gerenciamento de estoque farmacêutico que ajuda os usuários a verificar a disponibilidade de medicamentos, reduzindo deslocamentos desnecessários.
+>Obs: Este serviço ainda esta em desenvolvimento e melhorias tecnicas estão sendo planejadas. 
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Funcionalidades Principais
+### Para Usuários (Clientes)
+- **Cadastro e Login**: Crie uma conta, faça login e recupere a senha.
+- **Pesquisa de Medicamentos**: Busca por nome.
+- **Verificação de Estoque**: Veja a disponibilidade e endereço  das farmácias.
+- **Notificações**: Alertas para reposição de medicamentos e lembretes de reserva.
+- **Reservas**: Reserva por até 7 dias com upload de receita.
+- **Histórico de Medicamentos**: Veja as reservas e os medicamentos marcados como alerta.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Para Farmácias
+- **Gestão de Estoque**: Insira, edite e remova medicamentos.
+- **Painel Administrativo**: Gerencie reservas.
+- **Cadastro de Funcionários**: Controle de acesso e gestão da equipe.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+## Tecnologias Utilizadas
+- **Backend**: Java (Spring Boot) 🚀
+- **Frontend**: Next.js (React) ✨
+- **Banco de Dados**: PostgreSQL 💳
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Plataformas Utilizadas
+- **Cloudinary** para armazenar imagens (prescrição médicas)
+- **Heroku** para deploy Java 
+- **Heroku** para banco de dados postgres
+- **Vercel** para frontend
 
-## Learn More
 
-To learn more about Next.js, take a look at the following resources:
+## Arquitetura do Sistema
+- **Frontend (Next.js)**: Páginas de login, cadastro, pesquisa, dashboards de usuário e farmácia.
+- **Backend (Spring Boot)**: Autenticação via JWT, gerenciamento de estoque, notificações e relatórios.
+- **Banco de Dados (PostgreSQL)**: Estruturado para gerenciar usuários, farmácias, estoque e reservas.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Licença
+Este projeto está sob a licença MIT. Para mais detalhes, veja o arquivo LICENSE.
