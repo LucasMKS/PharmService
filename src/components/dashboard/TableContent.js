@@ -6,6 +6,7 @@ import Cookies from "js-cookie";
 import PharmService from "../services/PharmService";
 import PharmacyModal from "./PharmacyModal";
 import AddMedication from "./AddMedication";
+import MedicineModal from "./MedicineModal";
 import NProgress from "nprogress";
 
 import ReservationModal from "../table/ReservationModal";
@@ -21,10 +22,12 @@ NProgress.configure({
   easing: "ease",
   speed: 800,
 });
+
 const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
   const [toasts, setToasts] = useState([]);
   const [medications, setMedications] = useState([]);
   const [filteredMedications, setFilteredMedications] = useState([]);
+  const [error, setError] = useState(null); // Estado para erro
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedPharmacy, setSelectedPharmacy] = useState(null);
@@ -64,6 +67,7 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
   // Busca de medicamentos
   const fetchMedications = useCallback(async () => {
     try {
+      setError(null); // Reseta o erro
       const response =
         roles === "FARMACIA" || roles === "GERENTE"
           ? pharmacyId
@@ -71,10 +75,24 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
             : await PharmService.getAllMedicines()
           : await PharmService.getAllMedicines();
 
-      setMedications(response);
-      setFilteredMedications(response);
+      console.log(response);
+
+      // Se a resposta for vazia ou nula, defina arrays vazios
+      if (!response || response.length === 0) {
+        setMedications([]);
+        setFilteredMedications([]);
+      } else {
+        setMedications(response);
+        setFilteredMedications(response);
+      }
     } catch (err) {
-      showToast("Falha ao carregar medicamentos", "error");
+      // Define a mensagem de erro e limpa os dados
+      const errorMsg =
+        err.response?.data?.error || "Falha ao carregar medicamentos";
+      setError(errorMsg);
+      setMedications([]);
+      setFilteredMedications([]);
+      showToast(errorMsg, "error");
     }
   }, [roles, pharmacyId, showToast]);
 
@@ -215,18 +233,27 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
               <table className="min-w-full divide-y divide-gray-200 dark:divide-neutral-700">
                 <TableHeader />
                 <tbody className="bg-neutral-200 dark:bg-neutral-800 divide-y divide-gray-200 dark:divide-neutral-950">
-                  {paginatedData.map((medication) => (
-                    <TableRow
-                      key={medication.medicineId}
-                      medication={medication}
-                      roles={roles}
-                      onPharmacyClick={handlePharmacyClick}
-                      onEdit={handleEdit}
-                      onDelete={handleDelete}
-                      onReserve={() => handleReserve(medication)}
-                      onAlert={handleAlert}
-                    />
-                  ))}
+                  {paginatedData.length > 0 ? (
+                    paginatedData.map((medication) => (
+                      <TableRow
+                        key={medication.medicineId}
+                        medication={medication}
+                        roles={roles}
+                        onPharmacyClick={handlePharmacyClick}
+                        onMedicineClick={() => setSelectedMedicine(medication)}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                        onReserve={() => handleReserve(medication)}
+                        onAlert={handleAlert}
+                      />
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="5" className="text-center py-4">
+                        {error ? error : "Nenhum dado encontrado"}
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
 
@@ -255,6 +282,11 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
       <PharmacyModal
         pharmacy={selectedPharmacy}
         onClose={() => setSelectedPharmacy(null)}
+      />
+
+      <MedicineModal
+        medicine={selectedMedicine}
+        onClose={() => setSelectedMedicine(null)}
       />
 
       <dialog id="my_modal_5" className="modal modal-bottom sm:modal-middle">
