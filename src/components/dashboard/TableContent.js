@@ -75,18 +75,22 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
             : await PharmService.getAllMedicines()
           : await PharmService.getAllMedicines();
 
-      console.log(response);
+      // Verifica se o response é um array
+      const data = Array.isArray(response)
+        ? response
+        : response && Array.isArray(response.data)
+        ? response.data
+        : [];
 
-      // Se a resposta for vazia ou nula, defina arrays vazios
-      if (!response || response.length === 0) {
+      // Se não houver dados, garante que seja um array vazio
+      if (data.length === 0) {
         setMedications([]);
         setFilteredMedications([]);
       } else {
-        setMedications(response);
-        setFilteredMedications(response);
+        setMedications(data);
+        setFilteredMedications(data);
       }
     } catch (err) {
-      // Define a mensagem de erro e limpa os dados
       const errorMsg =
         err.response?.data?.error || "Falha ao carregar medicamentos";
       setError(errorMsg);
