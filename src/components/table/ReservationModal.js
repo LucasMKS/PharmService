@@ -11,6 +11,7 @@ const ReservationModal = ({
   medicineId,
   medicineName,
   showToast,
+  requiresPrescription, // Nova prop
 }) => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -23,15 +24,13 @@ const ReservationModal = ({
   const formatProtocol = (fileName) => {
     if (!fileName) return "N/A";
     const protocol = fileName.split("/").pop();
-
-    const nameWithoutExtension = protocol.split(".").slice(0, -1).join(".");
-
-    return nameWithoutExtension.split("_")[0];
+    return protocol.split(".")[0]; // Simplificado
   };
 
   const handleReservation = async () => {
-    if (!selectedFile) {
-      showToast("Por favor, selecione uma prescrição. ", "error");
+    // Validação condicional
+    if (requiresPrescription && !selectedFile) {
+      showToast("Prescrição médica obrigatória para este medicamento", "error");
       return;
     }
 
@@ -41,7 +40,11 @@ const ReservationModal = ({
     try {
       const formData = new FormData();
       formData.append("stockId", medicineId);
-      formData.append("prescription", selectedFile);
+
+      // Anexa arquivo apenas se existir e for obrigatório
+      if (requiresPrescription && selectedFile) {
+        formData.append("prescription", selectedFile);
+      }
 
       const userId = Cookies.get("userId");
       if (!userId) throw new Error("Usuário não autenticado");
@@ -52,7 +55,16 @@ const ReservationModal = ({
       onClose();
 
       const protocol = formatProtocol(response.prescriptionPath);
-      showToast("Reserva criada! Protocolo: " + protocol, "success");
+      showToast(
+        `Reserva criada${
+          requiresPrescription ? `! Protocolo: ${protocol}` : " com sucesso!"
+        }`,
+        "success"
+      );
+      showToast(
+        "Fique atento ao e-mail, caso a reserva seja aprovada você tera 7 diias para retira-lo na farmácia",
+        "success"
+      );
     } catch (error) {
       const errorMessage =
         error.response?.data?.error || error.message || "Erro ao criar reserva";
@@ -85,48 +97,57 @@ const ReservationModal = ({
           </h2>
 
           <div className="py-4">
-            <div className="form-control">
-              <label className="label justify-start gap-2 pl-1">
-                <FiFile className="w-5 h-5 text-blue-500 dark:text-blue-400" />
-                <span className="label-text text-gray-600 dark:text-gray-300">
-                  Prescrição Médica
-                </span>
-              </label>
-
-              <div className="relative group">
-                <div
-                  className={`flex flex-col items-center justify-center h-32 border-2 
-                  border-dashed rounded-lg transition-all
-                  ${
-                    selectedFile
-                      ? "border-green-100 bg-green-50"
-                      : "border-blue-100 hover:border-blue-200 bg-white dark:bg-gray-700"
-                  }`}
-                >
-                  <FiUploadCloud className="w-8 h-8 text-blue-400 mb-2" />
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
-                    {selectedFile?.name || "Arraste ou clique para enviar"}
+            {requiresPrescription && (
+              <div className="form-control">
+                <label className="label justify-start gap-2 pl-1">
+                  <FiFile className="w-5 h-5 text-blue-500 dark:text-blue-400" />
+                  <span className="label-text text-gray-600 dark:text-gray-300">
+                    Prescrição Médica (PDF ou imagem)
                   </span>
+                </label>
 
-                  <input
-                    type="file"
-                    accept="image/*,application/pdf"
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    onChange={handleFileChange}
-                    disabled={isLoading}
-                  />
+                <div className="relative group">
+                  <div
+                    className={`flex flex-col items-center justify-center h-32 border-2 
+                    border-dashed rounded-lg transition-all
+                    ${
+                      selectedFile
+                        ? "border-green-100 bg-green-50"
+                        : "border-blue-100 hover:border-blue-200 bg-white dark:bg-gray-700"
+                    }`}
+                  >
+                    <FiUploadCloud className="w-8 h-8 text-blue-400 mb-2" />
+                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                      {selectedFile?.name || "Arraste ou clique para enviar"}
+                    </span>
+
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      onChange={handleFileChange}
+                      disabled={isLoading}
+                    />
+                  </div>
                 </div>
+
+                {selectedFile && (
+                  <div className="mt-2 text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                    <FiFile className="flex-shrink-0" />
+                    <span className="truncate">{selectedFile.name}</span>
+                  </div>
+                )}
               </div>
-
-              {selectedFile && (
-                <div className="mt-2 text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                  <FiFile className="flex-shrink-0" />
-                  <span className="truncate">{selectedFile.name}</span>
-                </div>
-              )}
-            </div>
-
-            <div className="flex gap-3 justify-end">
+            )}
+            {!requiresPrescription && (
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mt-4">
+                  O {medicineName} não requer prescrição médica, deseja
+                  continuar com a reserva?
+                </p>
+              </div>
+            )}
+            <div className="flex gap-3 justify-end mt-6">
               <button
                 type="button"
                 onClick={onClose}
@@ -140,7 +161,7 @@ const ReservationModal = ({
                 type="submit"
                 className="btn btn-primary gap-2 hover:scale-[1.02] transition-transform"
                 onClick={handleReservation}
-                disabled={!selectedFile || isLoading}
+                disabled={(requiresPrescription && !selectedFile) || isLoading}
               >
                 {isLoading ? (
                   <span className="loading loading-spinner"></span>

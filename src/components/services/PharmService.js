@@ -329,7 +329,6 @@ const PharmService = {
   },
 
   forgotPassword: async (email) => {
-    console.log(email);
     try {
       const formData = new URLSearchParams();
       formData.append("email", email);
@@ -346,7 +345,6 @@ const PharmService = {
   },
 
   resetPassword: async (token, newPassword) => {
-    console.log(token, newPassword);
     const formData = new URLSearchParams();
     formData.append("newPassword", newPassword);
     formData.append("token", token);

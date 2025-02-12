@@ -1,4 +1,4 @@
-import { React } from "react";
+import { React, useState } from "react";
 import PharmService from "../services/PharmService";
 import {
   FiEdit,
@@ -23,25 +23,20 @@ const EditMedicationModal = ({
   onClose,
   onSave,
   showToast,
-  roles,
-  pharmacyId,
 }) => {
+  const [isUpdating, setIsUpdating] = useState(false);
+
   const onSubmit = async (data) => {
     try {
-      await PharmService.updateMedicine(selectedMedicine.pharmacy.id, {
-        medicineName: data.medicineName,
-        quantity: data.quantity,
-        category: data.category,
-        dosageForm: data.dosageForm,
-        manufacturer: data.manufacturer,
-        classification: data.classification,
-        requiresPrescription: data.requiresPrescription === "true",
-      });
+      setIsUpdating(true);
+      await PharmService.updateMedicine(selectedMedicine.pharmacy.id, data);
       onSave();
       onClose();
       showToast("Medicamento atualizado com sucesso!");
     } catch (error) {
       showToast(`Erro ao atualizar: ${error.response?.data?.error}`, "error");
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -255,12 +250,10 @@ const EditMedicationModal = ({
               )}
             </div>
 
-            {/* <div className="form-control">
+            <div className="form-control">
               <label className="label justify-start gap-2 pl-1">
-                <FiFileText className="w-5 h-5 text-blue-500 dark:text-blue-400" />
-                <span className="label-text text-gray-600 dark:text-gray-300">
-                  Requer Prescrição
-                </span>
+                <FiFileText className="w-5 h-5 text-blue-500" />
+                <span className="label-text">Requer Prescrição</span>
               </label>
               <label className="label justify-start gap-3 cursor-pointer">
                 <input
@@ -269,18 +262,16 @@ const EditMedicationModal = ({
                   defaultChecked={selectedMedicine?.requiresPrescription}
                   {...register("requiresPrescription")}
                 />
-                <span className="label-text text-sm">
-                  {selectedMedicine?.requiresPrescription ? "Sim" : "Não"}
-                </span>
+                <span className="label-text">Sim</span>
               </label>
-            </div> */}
-            {/* Quantidade */}
+            </div>
 
             <div className="flex gap-3 justify-end pt-6">
               <button
                 type="button"
                 onClick={onClose}
                 className="btn btn-ghost hover:bg-gray-100 dark:hover:bg-gray-700 gap-2"
+                disabled={isUpdating}
               >
                 <FiX className="text-lg" />
                 Cancelar
@@ -288,9 +279,16 @@ const EditMedicationModal = ({
               <button
                 type="submit"
                 className="btn btn-primary gap-2 hover:scale-[1.02] transition-transform"
+                disabled={isUpdating}
               >
-                <FiCheck className="text-lg" />
-                Salvar Alterações
+                {isUpdating ? (
+                  <span className="loading loading-spinner"></span>
+                ) : (
+                  <>
+                    <FiCheck className="text-lg" />
+                    Salvar Alterações
+                  </>
+                )}
               </button>
             </div>
           </form>

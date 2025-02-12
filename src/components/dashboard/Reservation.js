@@ -226,10 +226,18 @@ const Reservation = () => {
 
   const formatProtocol = (fileName) => {
     if (!fileName) return "N/A";
+
+    // Verifica se é um arquivo (tem extensão)
+    const isFile = fileName.match(/\.(pdf|png|jpg|jpeg)$/i);
+
+    // Se for protocolo gerado (não tem extensão)
+    if (!isFile) {
+      return fileName; // Já é o protocolo gerado
+    }
+
+    // Se for arquivo, formata normalmente
     const protocol = fileName.split("/").pop();
-
     const nameWithoutExtension = protocol.split(".").slice(0, -1).join(".");
-
     return nameWithoutExtension.split("_")[0];
   };
 
@@ -351,14 +359,26 @@ const Reservation = () => {
                           {pharmacyName}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200">
-                          <a
-                            href={`${reservation.prescriptionPath}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-500 hover:text-blue-700 dark:text-blue-400"
-                          >
-                            {protocol}
-                          </a>
+                          {reservation.prescriptionPath ? (
+                            reservation.prescriptionPath.match(
+                              /\.(pdf|png|jpg|jpeg)$/i
+                            ) ? (
+                              <a
+                                href={`${reservation.prescriptionPath}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-500 hover:text-blue-700 dark:text-blue-400"
+                              >
+                                {formatProtocol(reservation.prescriptionPath)}
+                              </a>
+                            ) : (
+                              <span className="text-gray-500 dark:text-gray-400">
+                                {formatProtocol(reservation.prescriptionPath)}
+                              </span>
+                            )
+                          ) : (
+                            "N/A"
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200">
                           <StatusBadge status={reservation.status} />

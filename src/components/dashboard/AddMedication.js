@@ -1,7 +1,14 @@
 import React from "react";
 import { useForm } from "react-hook-form";
 import PharmService from "../services/PharmService";
-import { FiBox, FiAlertCircle, FiHome, FiPlus, FiX } from "react-icons/fi";
+import {
+  FiBox,
+  FiAlertCircle,
+  FiHome,
+  FiPlus,
+  FiX,
+  FiFileText,
+} from "react-icons/fi";
 
 const AddMedication = ({ pharmacyId, onMedicationAdded, roles }) => {
   const {
@@ -46,7 +53,6 @@ const AddMedication = ({ pharmacyId, onMedicationAdded, roles }) => {
         onMedicationAdded();
       }
     } catch (error) {
-      console.error("Erro ao adicionar medicamento:", error);
       alert(
         "Não foi possível adicionar o medicamento. " + (error.message || "")
       );
@@ -251,6 +257,21 @@ const AddMedication = ({ pharmacyId, onMedicationAdded, roles }) => {
                   </span>
                 </div>
               )}
+            </div>
+
+            <div className="form-control">
+              <label className="label justify-start gap-2 pl-1">
+                <FiFileText className="w-5 h-5 text-blue-500" />
+                <span className="label-text">Requer Prescrição</span>
+              </label>
+              <label className="label justify-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="toggle toggle-primary"
+                  {...register("requiresPrescription")}
+                />
+                <span className="label-text">Sim</span>
+              </label>
             </div>
 
             {roles === "ADMIN" && (

@@ -4,9 +4,9 @@ import { useForm } from "react-hook-form";
 import Fuse from "fuse.js";
 import Cookies from "js-cookie";
 import PharmService from "../services/PharmService";
-import PharmacyModal from "./PharmacyModal";
+import PharmacyModal from "../table/PharmacyModal";
 import AddMedication from "./AddMedication";
-import MedicineModal from "./MedicineModal";
+import MedicineModal from "../table/MedicineModal";
 import NProgress from "nprogress";
 
 import ReservationModal from "../table/ReservationModal";
@@ -136,8 +136,6 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
             ? await PharmService.getMedicineByPharmacyId(pharmacyId)
             : await PharmService.getAllMedicines()
           : await PharmService.getAllMedicines();
-
-      console.log(response);
 
       // Verifica se o response é um array
       const data = Array.isArray(response)
@@ -304,6 +302,7 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
               onSuccess={handleReservationSuccess}
               medicineId={selectedMedication?.medicineId}
               medicineName={selectedMedication?.medicineName}
+              requiresPrescription={selectedMedication?.requiresPrescription}
               showToast={showToast}
             />
 

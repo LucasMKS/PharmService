@@ -44,8 +44,8 @@ const ImportMedicinesModal = ({ onClose, onSuccess }) => {
   };
 
   return (
-    <div className="modal modal-open bg-black/30">
-      <div className="modal-box relative max-w-md bg-gradient-to-br from-blue-50 to-white dark:from-gray-800 dark:to-gray-900">
+    <div className="fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="modal-box relative max-w-md bg-gradient-to-br from-blue-50 to-white dark:from-gray-800 dark:to-gray-900 shadow-2xl">
         <button
           onClick={onClose}
           className="btn btn-sm btn-circle absolute right-4 top-4"
