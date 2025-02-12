@@ -7,6 +7,11 @@ import {
   FiX,
   FiCheck,
   FiAlertCircle,
+  FiDroplet,
+  FiGrid,
+  FiLayers,
+  FiTag,
+  FiFileText,
 } from "react-icons/fi";
 
 const EditMedicationModal = ({
@@ -18,12 +23,19 @@ const EditMedicationModal = ({
   onClose,
   onSave,
   showToast,
+  roles,
+  pharmacyId,
 }) => {
   const onSubmit = async (data) => {
     try {
       await PharmService.updateMedicine(selectedMedicine.pharmacy.id, {
         medicineName: data.medicineName,
         quantity: data.quantity,
+        category: data.category,
+        dosageForm: data.dosageForm,
+        manufacturer: data.manufacturer,
+        classification: data.classification,
+        requiresPrescription: data.requiresPrescription === "true",
       });
       onSave();
       onClose();
@@ -55,57 +67,214 @@ const EditMedicationModal = ({
           </h2>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            {/* Campos existentes */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="form-control">
+                <label className="label justify-start gap-2 pl-1">
+                  <FiPackage className="w-5 h-5 text-blue-500 dark:text-blue-400" />
+                  <span className="label-text text-gray-600 dark:text-gray-300">
+                    Nome do Medicamento
+                  </span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: Paracetamol 500mg"
+                  className={`input input-bordered w-full bg-white dark:bg-gray-700 focus:ring-2 focus:ring-blue-300 ${
+                    errors.medicineName && "input-error"
+                  }`}
+                  defaultValue={selectedMedicine?.medicineName}
+                  {...register("medicineName", {
+                    required: "Campo obrigatório",
+                  })}
+                />
+                {errors.medicineName && (
+                  <div className="flex items-center gap-2 mt-2 text-error">
+                    <FiAlertCircle className="text-sm" />
+                    <span className="text-sm">
+                      {errors.medicineName.message}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="form-control">
+                <label className="label justify-start gap-2 pl-1">
+                  <FiArchive className="w-5 h-5 text-blue-500 dark:text-blue-400" />
+                  <span className="label-text text-gray-600 dark:text-gray-300">
+                    Quantidade
+                  </span>
+                </label>
+                <input
+                  type="number"
+                  placeholder="Ex: 150"
+                  className={`input input-bordered w-full bg-white dark:bg-gray-700 focus:ring-2 focus:ring-blue-300 ${
+                    errors.quantity && "input-error"
+                  }`}
+                  min="0"
+                  defaultValue={selectedMedicine?.quantity}
+                  {...register("quantity", {
+                    required: "Campo obrigatório",
+                    min: { value: 0, message: "Valor mínimo é 0" },
+                  })}
+                />
+                {errors.quantity && (
+                  <div className="flex items-center gap-2 mt-2 text-error">
+                    <FiAlertCircle className="text-sm" />
+                    <span className="text-sm">{errors.quantity.message}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {/* Categoria */}
+              <div className="form-control">
+                <label className="label justify-start gap-2 pl-1">
+                  <FiGrid className="w-5 h-5 text-blue-500 dark:text-blue-400" />
+                  <span className="label-text text-gray-600 dark:text-gray-300">
+                    Categoria
+                  </span>
+                </label>
+                <select
+                  className={`select select-bordered w-full bg-white dark:bg-gray-700 ${
+                    errors.category && "select-error"
+                  }`}
+                  defaultValue={selectedMedicine?.category}
+                  {...register("category", { required: "Campo obrigatório" })}
+                >
+                  <option value="">Selecione</option>
+                  <option value="Antidiabético">Antidiabético</option>
+                  <option value="Antiviral">Antiviral</option>
+                  <option value="Analgésico">Analgésico</option>
+                  <option value="Antibiótico">Antibiótico</option>
+                  <option value="Antiinflamatório">Antiinflamatório</option>
+                  <option value="Antihipertensivo">Antihipertensivo</option>
+                  <option value="Ansiolítico">Ansiolítico</option>
+                  <option value="Antidepressivo">Antidepressivo</option>
+                  <option value="Antifúngico">Antifúngico</option>
+                  <option value="Antialérgico">Antialérgico</option>
+                  <option value="Outros">Outros</option>
+                </select>
+                {errors.category && (
+                  <div className="flex items-center gap-2 mt-2 text-error">
+                    <FiAlertCircle className="text-sm" />
+                    <span className="text-sm">{errors.category.message}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Forma Farmacêutica */}
+              <div className="form-control">
+                <label className="label justify-start gap-2 pl-1">
+                  <FiLayers className="w-5 h-5 text-blue-500 dark:text-blue-400" />
+                  <span className="label-text text-gray-600 dark:text-gray-300">
+                    Forma Farmacêutica
+                  </span>
+                </label>
+                <select
+                  className={`select select-bordered w-full bg-white dark:bg-gray-700 ${
+                    errors.dosageForm && "select-error"
+                  }`}
+                  defaultValue={selectedMedicine?.dosageForm}
+                  {...register("dosageForm", { required: "Campo obrigatório" })}
+                >
+                  <option value="">Selecione</option>
+                  <option value="Comprimido">Comprimido</option>
+                  <option value="Cápsula">Cápsula</option>
+                  <option value="Xarope">Xarope</option>
+                  <option value="Pomada">Pomada</option>
+                  <option value="Injeção">Injeção</option>
+                  <option value="Creme">Creme</option>
+                  <option value="Gotas">Gotas</option>
+                  <option value="Inalador">Inalador</option>
+                  <option value="Outros">Outros</option>
+                </select>
+                {errors.dosageForm && (
+                  <div className="flex items-center gap-2 mt-2 text-error">
+                    <FiAlertCircle className="text-sm" />
+                    <span className="text-sm">{errors.dosageForm.message}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+            {/* Fabricante */}
             <div className="form-control">
               <label className="label justify-start gap-2 pl-1">
-                <FiPackage className="w-5 h-5 text-blue-500 dark:text-blue-400" />
+                <FiTag className="w-5 h-5 text-blue-500 dark:text-blue-400" />
                 <span className="label-text text-gray-600 dark:text-gray-300">
-                  Nome do Medicamento
+                  Fabricante
                 </span>
               </label>
               <input
                 type="text"
-                placeholder="Ex: Paracetamol 500mg"
+                placeholder="Ex: Johnson & Johnson"
                 className={`input input-bordered w-full bg-white dark:bg-gray-700 focus:ring-2 focus:ring-blue-300 ${
-                  errors.medicineName && "input-error"
+                  errors.manufacturer && "input-error"
                 }`}
-                defaultValue={selectedMedicine?.medicineName}
-                {...register("medicineName", { required: "Campo obrigatório" })}
+                defaultValue={selectedMedicine?.manufacturer}
+                {...register("manufacturer", { required: "Campo obrigatório" })}
               />
-              {errors.medicineName && (
+              {errors.manufacturer && (
                 <div className="flex items-center gap-2 mt-2 text-error">
                   <FiAlertCircle className="text-sm" />
-                  <span className="text-sm">{errors.medicineName.message}</span>
+                  <span className="text-sm">{errors.manufacturer.message}</span>
+                </div>
+              )}
+            </div>
+            {/* Classificação */}
+            <div className="form-control">
+              <label className="label justify-start gap-2 pl-1">
+                <FiDroplet className="w-5 h-5 text-blue-500 dark:text-blue-400" />
+                <span className="label-text text-gray-600 dark:text-gray-300">
+                  Classificação
+                </span>
+              </label>
+              <select
+                className={`select select-bordered w-full bg-white dark:bg-gray-700 ${
+                  errors.classification && "select-error"
+                }`}
+                defaultValue={selectedMedicine?.classification}
+                {...register("classification", {
+                  required: "Campo obrigatório",
+                })}
+              >
+                <option value="">Selecione</option>
+                <option value="Controlado">Controlado</option>
+                <option value="Genérico">Genérico</option>
+                <option value="Similar">Similar</option>
+                <option value="Fitoterápico">Fitoterápico</option>
+                <option value="Manipulado">Manipulado</option>
+                <option value="Outros">Outros</option>
+              </select>
+              {errors.classification && (
+                <div className="flex items-center gap-2 mt-2 text-error">
+                  <FiAlertCircle className="text-sm" />
+                  <span className="text-sm">
+                    {errors.classification.message}
+                  </span>
                 </div>
               )}
             </div>
 
-            <div className="form-control">
+            {/* <div className="form-control">
               <label className="label justify-start gap-2 pl-1">
-                <FiArchive className="w-5 h-5 text-blue-500 dark:text-blue-400" />
+                <FiFileText className="w-5 h-5 text-blue-500 dark:text-blue-400" />
                 <span className="label-text text-gray-600 dark:text-gray-300">
-                  Quantidade em Estoque
+                  Requer Prescrição
                 </span>
               </label>
-              <input
-                type="number"
-                placeholder="Ex: 150"
-                className={`input input-bordered w-full bg-white dark:bg-gray-700 focus:ring-2 focus:ring-blue-300 ${
-                  errors.quantity && "input-error"
-                }`}
-                min="0"
-                defaultValue={selectedMedicine?.quantity}
-                {...register("quantity", {
-                  required: "Campo obrigatório",
-                  min: { value: 0, message: "Valor mínimo é 0" },
-                })}
-              />
-              {errors.quantity && (
-                <div className="flex items-center gap-2 mt-2 text-error">
-                  <FiAlertCircle className="text-sm" />
-                  <span className="text-sm">{errors.quantity.message}</span>
-                </div>
-              )}
-            </div>
+              <label className="label justify-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="toggle toggle-primary"
+                  defaultChecked={selectedMedicine?.requiresPrescription}
+                  {...register("requiresPrescription")}
+                />
+                <span className="label-text text-sm">
+                  {selectedMedicine?.requiresPrescription ? "Sim" : "Não"}
+                </span>
+              </label>
+            </div> */}
+            {/* Quantidade */}
 
             <div className="flex gap-3 justify-end pt-6">
               <button

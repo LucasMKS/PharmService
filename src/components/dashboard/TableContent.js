@@ -32,9 +32,16 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedPharmacy, setSelectedPharmacy] = useState(null);
   const [selectedMedicine, setSelectedMedicine] = useState(null);
+  const [selectedMedicineName, setSelectedMedicineName] = useState(null);
   const [selectedMedication, setSelectedMedication] = useState(null);
   const [reservationModalOpen, setReservationModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
+
+  const [filters, setFilters] = useState({
+    category: "",
+    dosageForm: "",
+    classification: "",
+  });
 
   const {
     register,
@@ -49,10 +56,65 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
     () =>
       new Fuse(medications, {
         keys: ["medicineName", "pharmacy.name"],
-        threshold: 0.3,
+        threshold: 0.2, // Aumentar precisão (0 = exato, 1 = mais flexível)
+        ignoreLocation: false, // Considerar posição dos caracteres
+        minMatchCharLength: 3, // Mínimo de caracteres para considerar match
       }),
     [medications]
   );
+
+  const filterOptions = useMemo(() => {
+    const categories = new Set();
+    const dosageForms = new Set();
+    const classifications = new Set();
+
+    medications.forEach((med) => {
+      if (med.category) categories.add(med.category);
+      if (med.dosageForm) dosageForms.add(med.dosageForm);
+      if (med.classification) classifications.add(med.classification);
+    });
+
+    return {
+      categories: Array.from(categories).sort(),
+      dosageForms: Array.from(dosageForms).sort(),
+      classifications: Array.from(classifications).sort(),
+    };
+  }, [medications]);
+
+  // Função para atualizar filtros
+  const handleFilterChange = (filterType, value) => {
+    setFilters((prev) => ({
+      ...prev,
+      [filterType]: value,
+    }));
+  };
+
+  // Modifique o useEffect de filtragem
+  useEffect(() => {
+    const debouncedSearch = setTimeout(() => {
+      let results = medications;
+
+      // Aplica busca textual
+      if (searchTerm.trim()) {
+        results = fuse.search(searchTerm).map(({ item }) => item);
+      }
+
+      // Aplica filtros
+      results = results.filter((med) => {
+        return (
+          (!filters.category || med.category === filters.category) &&
+          (!filters.dosageForm || med.dosageForm === filters.dosageForm) &&
+          (!filters.classification ||
+            med.classification === filters.classification)
+        );
+      });
+
+      setFilteredMedications(results);
+      setCurrentPage(1);
+    }, 300);
+
+    return () => clearTimeout(debouncedSearch);
+  }, [searchTerm, medications, fuse, filters]);
 
   // Função para exibir toasts
   const showToast = useCallback((message, type = "success") => {
@@ -74,6 +136,8 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
             ? await PharmService.getMedicineByPharmacyId(pharmacyId)
             : await PharmService.getAllMedicines()
           : await PharmService.getAllMedicines();
+
+      console.log(response);
 
       // Verifica se o response é um array
       const data = Array.isArray(response)
@@ -109,8 +173,11 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
     const debouncedSearch = setTimeout(() => {
       if (!searchTerm.trim()) {
         setFilteredMedications(medications);
+        setCurrentPage(1); // Resetar para a primeira página
       } else {
-        setFilteredMedications(fuse.search(searchTerm).map(({ item }) => item));
+        const results = fuse.search(searchTerm).map(({ item }) => item);
+        setFilteredMedications(results);
+        setCurrentPage(1); // Resetar para a primeira página ao pesquisar
       }
     }, 300);
 
@@ -118,7 +185,10 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
   }, [searchTerm, medications, fuse]);
 
   // Handlers
-  const handleSearch = useCallback((term) => setSearchTerm(term), []);
+  const handleSearch = useCallback((term) => {
+    setSearchTerm(term);
+    setCurrentPage(1); // Garantir reset da página ao pesquisar
+  }, []);
 
   const handleReservationSuccess = useCallback((medicineId) => {
     setMedications((prev) =>
@@ -206,9 +276,13 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
             <SearchBar
               onSearch={handleSearch}
               onAddClick={() =>
-                document.getElementById("my_modal_5").showModal()
+                document.getElementById("addMedicine").showModal()
               }
               showAddButton={roles !== "CLIENTE"}
+              categories={filterOptions.categories}
+              dosageForms={filterOptions.dosageForms}
+              classifications={filterOptions.classifications}
+              onFilterChange={handleFilterChange}
             />
 
             <EditMedicationModal
@@ -244,7 +318,9 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
                         medication={medication}
                         roles={roles}
                         onPharmacyClick={handlePharmacyClick}
-                        onMedicineClick={() => setSelectedMedicine(medication)}
+                        onMedicineClick={() =>
+                          setSelectedMedicineName(medication)
+                        }
                         onEdit={handleEdit}
                         onDelete={handleDelete}
                         onReserve={() => handleReserve(medication)}
@@ -268,6 +344,8 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
                 onNext={() =>
                   setCurrentPage((p) => Math.min(totalPages, p + 1))
                 }
+                prevDisabled={currentPage === 1}
+                nextDisabled={currentPage === totalPages}
               />
             </div>
           </div>
@@ -289,11 +367,11 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
       />
 
       <MedicineModal
-        medicine={selectedMedicine}
-        onClose={() => setSelectedMedicine(null)}
+        medicine={selectedMedicineName}
+        onClose={() => setSelectedMedicineName(null)}
       />
 
-      <dialog id="my_modal_5" className="modal modal-bottom sm:modal-middle">
+      <dialog id="addMedicine" className="modal modal-bottom sm:modal-middle">
         <AddMedication
           pharmacyId={pharmacyId}
           onMedicationAdded={fetchMedications}

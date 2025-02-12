@@ -1,11 +1,12 @@
 import React from "react";
 import {
   FiPackage,
-  FiUsers,
-  FiThermometer,
-  FiActivity,
+  FiGrid,
   FiArchive,
   FiX,
+  FiDroplet,
+  FiTag,
+  FiLayers,
 } from "react-icons/fi";
 
 const MedicineModal = ({ medicine, onClose }) => {
@@ -13,7 +14,7 @@ const MedicineModal = ({ medicine, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="modal-box relative max-w-md bg-gradient-to-br from-blue-50 to-white dark:from-gray-800 dark:to-gray-900 shadow-2xl">
+      <div className="modal-box relative max-w-lg bg-gradient-to-br from-blue-50 to-white dark:from-gray-800 dark:to-gray-900 shadow-2xl">
         <button
           onClick={onClose}
           className="btn btn-sm btn-circle absolute right-4 top-4 text-gray-500 hover:text-blue-600"
@@ -32,7 +33,7 @@ const MedicineModal = ({ medicine, onClose }) => {
 
           <div className="space-y-3 text-left">
             <div className="grid grid-cols-2 gap-4">
-              <InfoItem icon={<FiActivity />} label="Categoria">
+              <InfoItem icon={<FiGrid />} label="Categoria">
                 {medicine.category || "N/A"}
               </InfoItem>
 
@@ -40,12 +41,16 @@ const MedicineModal = ({ medicine, onClose }) => {
                 {medicine.quantity || "N/A"}
               </InfoItem>
             </div>
-            <InfoItem icon={<FiThermometer />} label="Forma">
+            <InfoItem icon={<FiLayers />} label="Forma farmacêutica">
               {medicine.dosageForm || "N/A"}
             </InfoItem>
 
-            <InfoItem icon={<FiUsers />} label="Fabricante">
+            <InfoItem icon={<FiTag />} label="Fabricante">
               {medicine.manufacturer || "N/A"}
+            </InfoItem>
+
+            <InfoItem icon={<FiDroplet />} label="Classificação">
+              {medicine.classification || "N/A"}
             </InfoItem>
           </div>
         </div>

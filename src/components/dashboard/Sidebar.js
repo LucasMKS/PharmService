@@ -9,16 +9,19 @@ import {
   FiChevronsRight,
   FiAlertCircle,
   FiLogOut,
+  FiUploadCloud,
 } from "react-icons/fi";
 import { useAuth } from "@/hooks/useAuth";
 import AlertsDrawer from "./AlertsDrawer";
 import PharmService from "../services/PharmService";
+import ImportMedicinesModal from "./ImportMedicinesModal";
 
 const Sidebar = ({ setSelectedContent, refreshAlerts, userAlerts }) => {
   const [open, setOpen] = useState(true);
   const [selected, setSelected] = useState("Dashboard");
   const { user, logout } = useAuth();
   const [alertsDrawerOpen, setAlertsDrawerOpen] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
   const roles = user ? user.roles : "";
 
   // Função para deletar alerta
@@ -75,6 +78,16 @@ const Sidebar = ({ setSelectedContent, refreshAlerts, userAlerts }) => {
             />
           )}
 
+          {roles === "GERENTE" && (
+            <Option
+              Icon={FiUploadCloud}
+              title="Importar Medicamentos"
+              selected={selected}
+              setSelected={() => setImportModalOpen(true)}
+              open={open}
+            />
+          )}
+
           {roles == "CLIENTE" && (
             <div className="relative">
               <button
@@ -111,6 +124,16 @@ const Sidebar = ({ setSelectedContent, refreshAlerts, userAlerts }) => {
                 onDeleteAlert={handleDeleteAlert}
               />
             </div>
+          )}
+
+          {importModalOpen && (
+            <ImportMedicinesModal
+              onClose={() => setImportModalOpen(false)}
+              onSuccess={() => {
+                setImportModalOpen(false);
+                if (onMedicationAdded) onMedicationAdded();
+              }}
+            />
           )}
         </div>
       </div>

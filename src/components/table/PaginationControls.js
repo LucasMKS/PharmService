@@ -1,28 +1,37 @@
 import React from "react";
 
-const PaginationControls = ({ currentPage, totalPages, onPrev, onNext }) => {
+const PaginationControls = ({
+  currentPage,
+  totalPages,
+  onPrev,
+  onNext,
+  prevDisabled,
+  nextDisabled,
+}) => {
   return (
-    <div className="py-2 px-4 bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center gap-4">
+    <div className="flex justify-center gap-2 p-4 bg-neutral-100 dark:bg-neutral-800">
       <button
         onClick={onPrev}
-        disabled={currentPage === 1}
-        className="btn btn-sm btn-ghost"
-        aria-label="Página anterior"
+        disabled={prevDisabled}
+        className={`btn btn-sm ${
+          prevDisabled ? "btn-disabled" : "btn-primary"
+        }`}
       >
         Anterior
       </button>
 
-      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+      <span className="btn btn-sm btn-disabled">
         Página {currentPage} de {totalPages}
       </span>
 
       <button
         onClick={onNext}
-        disabled={currentPage === totalPages}
-        className="btn btn-sm btn-ghost"
-        aria-label="Próxima página"
+        disabled={nextDisabled}
+        className={`btn btn-sm ${
+          nextDisabled ? "btn-disabled" : "btn-primary"
+        }`}
       >
-        Próxima
+        Próximo
       </button>
     </div>
   );

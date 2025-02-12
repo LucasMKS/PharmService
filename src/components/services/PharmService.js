@@ -362,6 +362,27 @@ const PharmService = {
       throw error;
     }
   },
+
+  // Adicione este método
+  importMedicines: async (formData, pharmacyId) => {
+    try {
+      const response = await axiosInstance.post(
+        `/medicine/import-medicines/${pharmacyId}`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao importar medicamentos:", error);
+      throw new Error(
+        error.response?.data?.message || "Falha ao importar arquivo"
+      );
+    }
+  },
 };
 
 export default PharmService;
