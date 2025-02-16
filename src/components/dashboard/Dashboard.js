@@ -5,6 +5,7 @@ import Cookies from "js-cookie";
 import Sidebar from "./Sidebar";
 import TableContent from "./TableContent";
 import Reservation from "./Reservation";
+import ExportReports from "./ExportReports";
 import EmployeeManagement from "./EmployeeManagement";
 import PharmService from "../services/PharmService";
 
@@ -25,6 +26,7 @@ const CONTENT_MAP = {
   Dashboard: TableContent,
   Reservas: Reservation,
   Funcionarios: EmployeeManagement,
+  Relatórios: ExportReports,
 };
 
 export const Dashboard = () => {

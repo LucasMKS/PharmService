@@ -10,6 +10,7 @@ import {
   FiAlertCircle,
   FiLogOut,
   FiUploadCloud,
+  FiFileText,
 } from "react-icons/fi";
 import { useAuth } from "@/hooks/useAuth";
 import AlertsDrawer from "./AlertsDrawer";
@@ -84,6 +85,16 @@ const Sidebar = ({ setSelectedContent, refreshAlerts, userAlerts }) => {
               title="Importar Medicamentos"
               selected={selected}
               setSelected={() => setImportModalOpen(true)}
+              open={open}
+            />
+          )}
+
+          {roles === "GERENTE" && (
+            <Option
+              Icon={FiFileText}
+              title="Relatórios"
+              selected={selected}
+              setSelected={handleOptionSelect}
               open={open}
             />
           )}

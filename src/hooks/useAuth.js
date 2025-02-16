@@ -30,6 +30,7 @@ export const useAuth = () => {
     Cookies.remove("roles");
     Cookies.remove("pharmacyId");
     Cookies.remove("userId");
+    Cookies.remove("pharmacyName");
     setUser(null);
     router.push("/auth");
   };

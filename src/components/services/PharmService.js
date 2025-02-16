@@ -2,7 +2,7 @@ import axios from "axios";
 import Cookies from "js-cookie";
 
 // const API_BASE_URL = "http://localhost:8080/api";
-const API_BASE_URL = "https://pharm-service-api-629de3f47ddb.herokuapp.com/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -38,6 +38,7 @@ const PharmService = {
         response.data.roles.includes("GERENTE")
       ) {
         Cookies.set("pharmacyId", response.data.idPharmacy);
+        Cookies.set("pharmacyName", response.data.pharmacyName);
       }
       return response.data;
     } catch (error) {
@@ -95,9 +96,19 @@ const PharmService = {
   // Método para adicionar um novo medicamento
   addMedicine: async (medicineData) => {
     try {
+      const userId = Cookies.get("userId");
+      const userRole = Cookies.get("roles");
+
+      console.log(userId, userRole);
       const response = await axiosInstance.post(
         "/medicineFarm/create",
-        medicineData
+        medicineData,
+        {
+          headers: {
+            UserId: userId,
+            Role: userRole,
+          },
+        }
       );
       return response.data;
     } catch (error) {
@@ -114,9 +125,18 @@ const PharmService = {
   // Método para atualizar um medicamento
   updateMedicine: async (id, medicineData) => {
     try {
+      const userId = Cookies.get("userId");
+      const userRole = Cookies.get("roles");
+
       const response = await axiosInstance.put(
         `/medicineFarm/update/${id}`,
-        medicineData
+        medicineData,
+        {
+          headers: {
+            UserId: userId,
+            Role: userRole,
+          },
+        }
       );
       return response.data;
     } catch (error) {
@@ -128,7 +148,18 @@ const PharmService = {
   // Método para deletar um medicamento
   deleteMedicine: async (id) => {
     try {
-      const response = await axiosInstance.delete(`/medicineFarm/delete/${id}`);
+      const userId = Cookies.get("userId");
+      const userRole = Cookies.get("roles");
+
+      const response = await axiosInstance.delete(
+        `/medicineFarm/delete/${id}`,
+        {
+          headers: {
+            UserId: userId,
+            Role: userRole,
+          },
+        }
+      );
       return response.data;
     } catch (error) {
       console.error("Erro ao deletar medicamento:", error);
@@ -151,12 +182,15 @@ const PharmService = {
 
   createReservation: async (formData) => {
     try {
+      const userRole = Cookies.get("roles");
+
       const response = await axiosInstance.post(
         "/reservations/create",
         formData,
         {
           headers: {
             "Content-Type": "multipart/form-data",
+            Role: userRole,
           },
         }
       );
@@ -196,21 +230,11 @@ const PharmService = {
     }
   },
 
-  cancelReservation: async (reservationId) => {
-    try {
-      await axiosInstance.post(`/reservations/cancel/${reservationId}`, null, {
-        headers: {
-          Authorization: `Bearer ${Cookies.get("token")}`,
-        },
-      });
-    } catch (error) {
-      console.error("Erro ao cancelar reserva:", error);
-      throw error;
-    }
-  },
-
   manageReservation: async (reservationId, status, message) => {
     try {
+      const userId = Cookies.get("userId");
+      const userRole = Cookies.get("roles");
+
       await axiosInstance.post("/reservations/manage", null, {
         params: {
           reservationId,
@@ -219,6 +243,8 @@ const PharmService = {
         },
         headers: {
           Authorization: `Bearer ${Cookies.get("token")}`,
+          Role: userRole,
+          UserId: userId,
         },
       });
     } catch (error) {
@@ -364,12 +390,17 @@ const PharmService = {
   // Adicione este método
   importMedicines: async (formData, pharmacyId) => {
     try {
+      const userId = Cookies.get("userId");
+      const userRole = Cookies.get("roles");
+
       const response = await axiosInstance.post(
         `/medicine/import-medicines/${pharmacyId}`,
         formData,
         {
           headers: {
             "Content-Type": "multipart/form-data",
+            UserId: userId,
+            UserRole: userRole,
           },
         }
       );
@@ -381,6 +412,54 @@ const PharmService = {
       );
     }
   },
+
+  exportReport: async (params) => {
+    try {
+      const response = await axiosInstance.get("/reports/export", {
+        params,
+      });
+
+      // Extrair URL do PDF da resposta
+      const pdfUrl = response.data.download_url;
+
+      // Validar URL
+      if (!isValidUrl(pdfUrl)) {
+        throw new Error("URL do relatório inválida");
+      }
+
+      // Abrir em nova aba
+      const newWindow = window.open(pdfUrl, "_blank", "noopener,noreferrer");
+
+      if (
+        !newWindow ||
+        newWindow.closed ||
+        typeof newWindow.closed === "undefined"
+      ) {
+        throw new Error(
+          "O navegador bloqueou a abertura da janela. Por favor permita pop-ups para este site."
+        );
+      }
+    } catch (error) {
+      console.error("Erro ao exportar relatório:", error);
+      let message = error.message;
+
+      if (error.response) {
+        message = error.response.data || message;
+      }
+
+      throw new Error(message);
+    }
+  },
+};
+
+// Função auxiliar para validar URLs
+const isValidUrl = (urlString) => {
+  try {
+    new URL(urlString);
+    return true;
+  } catch {
+    return false;
+  }
 };
 
 export default PharmService;
