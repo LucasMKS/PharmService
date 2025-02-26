@@ -8,6 +8,7 @@ import Reservation from "./Reservation";
 import ExportReports from "./ExportReports";
 import EmployeeManagement from "./EmployeeManagement";
 import PharmService from "../services/PharmService";
+import PharmacyManagement from "../pharmacy/PharmacyManagement";
 
 const Loader = () => (
   <div className="flex items-center justify-center h-screen bg-blue-100 dark:bg-slate-950">
@@ -27,6 +28,7 @@ const CONTENT_MAP = {
   Reservas: Reservation,
   Funcionarios: EmployeeManagement,
   Relatórios: ExportReports,
+  Farmácias: PharmacyManagement,
 };
 
 export const Dashboard = () => {

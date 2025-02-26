@@ -94,12 +94,13 @@ const ExportReports = () => {
                 </label>
                 <select
                   value={format}
-                  disabled
                   onChange={(e) => setFormat(e.target.value)}
-                  className="w-full p-2 border rounded-md dark:bg-neutral-700 dark:text-white dark:border-neutral-600"
+                  className="w-full p-2 border rounded-md dark:bg-neutral-700 dark:text-white dark:border-neutral-600 "
                 >
                   <option value="pdf">PDF</option>
-                  <option value="excel">Excel</option>
+                  <option disabled value="excel">
+                    Excel
+                  </option>
                 </select>
               </div>
             </div>

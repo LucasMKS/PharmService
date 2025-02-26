@@ -21,6 +21,7 @@
     "nextjs-toploader": "^3.7.15",
     "nprogress": "^0.2.0",
     "react": "^19.0.0",
+    "react-confirm-alert": "^3.0.6",
     "react-datepicker": "^8.0.0",
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.53.2",

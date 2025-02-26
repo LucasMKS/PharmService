@@ -114,7 +114,7 @@ const EmployeeManagement = () => {
         <div className="p-1.5 min-w-full inline-block align-middle ">
           <div className=" divide-y dark:border-neutral-700 divide-gray-200 dark:divide-neutral-950">
             <div className="py-3 px-4 bg-neutral-100 dark:bg-neutral-800 flex justify-between items-center">
-              <div className="relative">
+              <div>
                 <h2 className="text-2xl font-bold text-neutral-900 dark:text-neutral-200">
                   Gerenciamento de Funcionários
                 </h2>

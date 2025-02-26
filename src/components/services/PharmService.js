@@ -1,8 +1,8 @@
 import axios from "axios";
 import Cookies from "js-cookie";
 
-// const API_BASE_URL = "http://localhost:8080/api";
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_BASE_URL = "http://localhost:8080/api";
+// const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -450,8 +450,64 @@ const PharmService = {
       throw new Error(message);
     }
   },
-};
 
+  listAllPharmacies: async () => {
+    try {
+      const response = await axiosInstance.get("/pharmacies/list");
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao buscar farmácias:", error);
+      throw error;
+    }
+  },
+
+  registerPharmacy: async (data) => {
+    try {
+      const response = await axiosInstance.post("/pharmacies/register", data);
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao registrar farmácia:", error);
+      throw error;
+    }
+  },
+
+  addEmployeeToPharmacy: async (data) => {
+    try {
+      const response = await axiosInstance.post(
+        "/pharmacies/employees/add",
+        data
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao registrar farmácia:", error);
+      throw error;
+    }
+  },
+
+  promoteEmployee: async (employeeId, pharmacyId) => {
+    try {
+      const response = await axiosInstance.post(
+        `/pharmacies/employees/promote/${employeeId}/${pharmacyId}`
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao registrar farmácia:", error);
+      throw error;
+    }
+  },
+
+  dismissEmployee: async (employeeId, pharmacyId) => {
+    try {
+      const response = await axiosInstance.post(
+        `/pharmacies/employees/dismiss/${employeeId}/${pharmacyId}`
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao registrar farmácia:", error);
+      throw error;
+    }
+  },
+};
 // Função auxiliar para validar URLs
 const isValidUrl = (urlString) => {
   try {

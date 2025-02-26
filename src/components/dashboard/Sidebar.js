@@ -99,6 +99,16 @@ const Sidebar = ({ setSelectedContent, refreshAlerts, userAlerts }) => {
             />
           )}
 
+          {roles === "ADMIN" && (
+            <Option
+              Icon={FiFileText}
+              title="Farmácias"
+              selected={selected}
+              setSelected={handleOptionSelect}
+              open={open}
+            />
+          )}
+
           {roles == "CLIENTE" && (
             <div className="relative">
               <button
