@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Cookies from "js-cookie";
 import { FiUploadCloud, FiX } from "react-icons/fi";
 import PharmService from "../services/PharmService";
@@ -8,6 +8,13 @@ const ImportMedicinesModal = ({ onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+  const userRole = Cookies.get("roles");
+
+  useEffect(() => {
+    if (userRole !== "GERENTE") {
+      onClose();
+    }
+  }, [userRole, onClose]);
 
   const pharmacyId = Cookies.get("pharmacyId");
 

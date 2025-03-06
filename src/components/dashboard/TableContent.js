@@ -14,6 +14,7 @@ import EditMedicationModal from "../table/EditMedicationModal";
 import PaginationControls from "../table/PaginationControls";
 import SearchBar from "../table/SearchBar";
 import TableRow from "../table/TableRow";
+import ImportMedicinesModal from "./ImportMedicinesModal";
 
 // Configuração do NProgress
 NProgress.configure({
@@ -36,6 +37,7 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
   const [selectedMedication, setSelectedMedication] = useState(null);
   const [reservationModalOpen, setReservationModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   const [filters, setFilters] = useState({
     category: "",
@@ -276,12 +278,21 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
               onAddClick={() =>
                 document.getElementById("addMedicine").showModal()
               }
+              onImportClick={() => setShowImportModal(true)} // Novo prop
               showAddButton={roles !== "CLIENTE"}
+              showImportButton={roles === "GERENTE"} // Novo prop
               categories={filterOptions.categories}
               dosageForms={filterOptions.dosageForms}
               classifications={filterOptions.classifications}
               onFilterChange={handleFilterChange}
             />
+
+            {showImportModal && (
+              <ImportMedicinesModal
+                onClose={() => setShowImportModal(false)}
+                onSuccess={fetchMedications}
+              />
+            )}
 
             <EditMedicationModal
               isOpen={editModalOpen}

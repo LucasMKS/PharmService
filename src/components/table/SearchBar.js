@@ -1,10 +1,12 @@
 import React from "react";
-import { FiSearch, FiPlus, FiFilter } from "react-icons/fi";
+import { FiSearch, FiPlus, FiUploadCloud } from "react-icons/fi";
 
 const SearchBar = ({
   onSearch,
   onAddClick,
+  onImportClick, // Novo prop
   showAddButton,
+  showImportButton, // Novo prop
   categories,
   dosageForms,
   classifications,
@@ -64,25 +66,28 @@ const SearchBar = ({
         </div>
       </div>
 
-      {/* <button
-        onClick={() =>
-          setFilters({ category: "", dosageForm: "", classification: "" })
-        }
-        className="btn btn-ghost btn-sm"
-      >
-        <FiFilter className="mr-1" />
-        Limpar Filtros
-      </button> */}
-
       {showAddButton && (
-        <button
-          onClick={onAddClick}
-          className="btn btn-primary btn-sm shrink-0"
-          aria-label="Adicionar medicamento"
-        >
-          <FiPlus className="text-lg" />
-          <span className="hidden sm:inline">Adicionar</span>
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={onAddClick}
+            className="btn btn-primary btn-sm shrink-0"
+            aria-label="Adicionar medicamento"
+          >
+            <FiPlus className="text-lg" />
+            <span className="hidden sm:inline">Adicionar</span>
+          </button>
+
+          {showImportButton && (
+            <button
+              onClick={onImportClick}
+              className="btn btn-secondary btn-sm shrink-0"
+              aria-label="Importar medicamentos"
+            >
+              <FiUploadCloud className="text-lg" />
+              <span className="hidden sm:inline">Importar</span>
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
