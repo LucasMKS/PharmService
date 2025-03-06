@@ -400,7 +400,7 @@ const PharmService = {
           headers: {
             "Content-Type": "multipart/form-data",
             UserId: userId,
-            Role: userRole,
+            UserRole: userRole,
           },
         }
       );
