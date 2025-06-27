@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useForm } from "react-hook-form";
-import Fuse from "fuse.js";
 import Cookies from "js-cookie";
 import PharmService from "../services/PharmService";
 import PharmacyModal from "../table/PharmacyModal";
@@ -11,10 +10,18 @@ import NProgress from "nprogress";
 
 import ReservationModal from "../table/ReservationModal";
 import EditMedicationModal from "../table/EditMedicationModal";
-import PaginationControls from "../table/PaginationControls";
-import SearchBar from "../table/SearchBar";
-import TableRow from "../table/TableRow";
 import ImportMedicinesModal from "./ImportMedicinesModal";
+
+import { FiSearch, FiPlus, FiUploadCloud } from "react-icons/fi";
+
+import {
+  useReactTable,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  flexRender,
+} from "@tanstack/react-table";
 
 // Configuração do NProgress
 NProgress.configure({
@@ -27,23 +34,27 @@ NProgress.configure({
 const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
   const [toasts, setToasts] = useState([]);
   const [medications, setMedications] = useState([]);
-  const [filteredMedications, setFilteredMedications] = useState([]);
-  const [error, setError] = useState(null); // Estado para erro
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
+  const [error, setError] = useState(null);
+
+  // Estados do TanStack Table
+  const [columnFilters, setColumnFilters] = useState([]);
+  const [globalFilter, setGlobalFilter] = useState("");
+  const [sorting, setSorting] = useState([]);
+  const [pagination, setPagination] = useState({
+    pageIndex: 0, // Corresponde a currentPage - 1
+    pageSize: 10, // Corresponde a itemsPerPage
+  });
+
   const [selectedPharmacy, setSelectedPharmacy] = useState(null);
   const [selectedMedicine, setSelectedMedicine] = useState(null);
-  const [selectedMedicineName, setSelectedMedicineName] = useState(null);
-  const [selectedMedication, setSelectedMedication] = useState(null);
+  const [selectedMedicineName, setSelectedMedicineName] = useState(null); // Para o MedicineModal
+  const [
+    selectedMedicationForReservation,
+    setSelectedMedicationForReservation,
+  ] = useState(null); // Para ReservationModal
   const [reservationModalOpen, setReservationModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
-
-  const [filters, setFilters] = useState({
-    category: "",
-    dosageForm: "",
-    classification: "",
-  });
 
   const {
     register,
@@ -51,72 +62,6 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
     formState: { errors },
     reset,
   } = useForm();
-  const itemsPerPage = 10;
-
-  // Configuração do Fuse.js memoizada
-  const fuse = useMemo(
-    () =>
-      new Fuse(medications, {
-        keys: ["medicineName", "pharmacy.name"],
-        threshold: 0.2, // Aumentar precisão (0 = exato, 1 = mais flexível)
-        ignoreLocation: false, // Considerar posição dos caracteres
-        minMatchCharLength: 3, // Mínimo de caracteres para considerar match
-      }),
-    [medications]
-  );
-
-  const filterOptions = useMemo(() => {
-    const categories = new Set();
-    const dosageForms = new Set();
-    const classifications = new Set();
-
-    medications.forEach((med) => {
-      if (med.category) categories.add(med.category);
-      if (med.dosageForm) dosageForms.add(med.dosageForm);
-      if (med.classification) classifications.add(med.classification);
-    });
-
-    return {
-      categories: Array.from(categories).sort(),
-      dosageForms: Array.from(dosageForms).sort(),
-      classifications: Array.from(classifications).sort(),
-    };
-  }, [medications]);
-
-  // Função para atualizar filtros
-  const handleFilterChange = (filterType, value) => {
-    setFilters((prev) => ({
-      ...prev,
-      [filterType]: value,
-    }));
-  };
-
-  // Modifique o useEffect de filtragem
-  useEffect(() => {
-    const debouncedSearch = setTimeout(() => {
-      let results = medications;
-
-      // Aplica busca textual
-      if (searchTerm.trim()) {
-        results = fuse.search(searchTerm).map(({ item }) => item);
-      }
-
-      // Aplica filtros
-      results = results.filter((med) => {
-        return (
-          (!filters.category || med.category === filters.category) &&
-          (!filters.dosageForm || med.dosageForm === filters.dosageForm) &&
-          (!filters.classification ||
-            med.classification === filters.classification)
-        );
-      });
-
-      setFilteredMedications(results);
-      setCurrentPage(1);
-    }, 300);
-
-    return () => clearTimeout(debouncedSearch);
-  }, [searchTerm, medications, fuse, filters]);
 
   // Função para exibir toasts
   const showToast = useCallback((message, type = "success") => {
@@ -128,90 +73,32 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
     }, 8000);
   }, []);
 
-  // Busca de medicamentos
-  const fetchMedications = useCallback(async () => {
-    try {
-      setError(null); // Reseta o erro
-      const response =
-        roles === "FARMACIA" || roles === "GERENTE"
-          ? pharmacyId
-            ? await PharmService.getMedicineByPharmacyId(pharmacyId)
-            : await PharmService.getAllMedicines()
-          : await PharmService.getAllMedicines();
+  // FUNÇÕES DE MANUSEIO DOS BOTÕES DA TABELA - MOVA ESTAS PARA CÁ
+  const handleReservationSuccess = useCallback(
+    (medicineId) => {
+      setMedications((prev) =>
+        prev.map((med) =>
+          med.medicineId === medicineId
+            ? { ...med, quantity: med.quantity - 1 }
+            : med
+        )
+      );
+      showToast("Reserva realizada com sucesso!");
+    },
+    [showToast]
+  );
 
-      // Verifica se o response é um array
-      const data = Array.isArray(response)
-        ? response
-        : response && Array.isArray(response.data)
-        ? response.data
-        : [];
-
-      // Se não houver dados, garante que seja um array vazio
-      if (data.length === 0) {
-        setMedications([]);
-        setFilteredMedications([]);
+  const handleReserve = useCallback(
+    // Certifique-se que esta e as demais estejam com useCallback
+    (medication) => {
+      if (medication?.medicineId) {
+        setSelectedMedicationForReservation(medication);
+        setReservationModalOpen(true);
       } else {
-        setMedications(data);
-        setFilteredMedications(data);
+        showToast("Erro: Medicamento não selecionado corretamente", "error");
       }
-    } catch (err) {
-      const errorMsg =
-        err.response?.data?.error || "Falha ao carregar medicamentos";
-      setError(errorMsg);
-      setMedications([]);
-      setFilteredMedications([]);
-      showToast(errorMsg, "error");
-    }
-  }, [roles, pharmacyId, showToast]);
-
-  // Efeitos
-  useEffect(() => {
-    fetchMedications();
-  }, [fetchMedications]);
-
-  useEffect(() => {
-    const debouncedSearch = setTimeout(() => {
-      if (!searchTerm.trim()) {
-        setFilteredMedications(medications);
-        setCurrentPage(1); // Resetar para a primeira página
-      } else {
-        const results = fuse.search(searchTerm).map(({ item }) => item);
-        setFilteredMedications(results);
-        setCurrentPage(1); // Resetar para a primeira página ao pesquisar
-      }
-    }, 300);
-
-    return () => clearTimeout(debouncedSearch);
-  }, [searchTerm, medications, fuse]);
-
-  // Handlers
-  const handleSearch = useCallback((term) => {
-    setSearchTerm(term);
-    setCurrentPage(1); // Garantir reset da página ao pesquisar
-  }, []);
-
-  const handleReservationSuccess = useCallback((medicineId) => {
-    setMedications((prev) =>
-      prev.map((med) =>
-        med.medicineId === medicineId
-          ? { ...med, quantity: med.quantity - 1 }
-          : med
-      )
-    );
-  }, []);
-
-  const handleReserve = (medication) => {
-    if (medication?.medicineId) {
-      setSelectedMedication(medication);
-      setReservationModalOpen(true);
-    } else {
-      showToast("Erro: Medicamento não selecionado corretamente", "error");
-    }
-  };
-
-  const handlePharmacyClick = useCallback(
-    (pharmacy) => setSelectedPharmacy(pharmacy),
-    []
+    },
+    [showToast]
   );
 
   const handleEdit = useCallback(
@@ -220,6 +107,10 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
         medicineName: medicine.medicineName,
         quantity: medicine.quantity,
         idPharmacy: medicine.pharmacy.id,
+        category: medicine.category,
+        dosageForm: medicine.dosageForm,
+        classification: medicine.classification,
+        requiresPrescription: medicine.requiresPrescription,
       });
       setSelectedMedicine(medicine);
       setEditModalOpen(true);
@@ -229,8 +120,9 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
 
   const handleDelete = useCallback(
     async (medicineId) => {
-      if (window.confirm("Confirm deletion?")) {
+      if (window.confirm("Confirmar exclusão?")) {
         try {
+          NProgress.start();
           await PharmService.deleteMedicine(medicineId);
           setMedications((prev) =>
             prev.filter((med) => med.medicineId !== medicineId)
@@ -238,6 +130,8 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
           showToast("Medicamento excluído com sucesso!");
         } catch (error) {
           showToast("Erro ao excluir medicamento", "error");
+        } finally {
+          NProgress.done();
         }
       }
     },
@@ -247,125 +141,463 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
   const handleAlert = useCallback(
     async (medication) => {
       try {
+        NProgress.start();
         const userId = Cookies.get("userId");
-        if (!userId) throw new Error("Unauthorized");
+        if (!userId) throw new Error("Usuário não autorizado");
 
         await PharmService.createAlert(userId, medication.medicineId);
         refreshAlerts();
         showToast("Alerta criado com sucesso!");
       } catch (error) {
-        showToast(`Erro: ${error.response?.data?.error}`, "error");
+        const errorMsg = error.response?.data?.error || "Falha ao criar alerta";
+        showToast(`Erro: ${errorMsg}`, "error");
+      } finally {
+        NProgress.done();
       }
     },
     [refreshAlerts, showToast]
   );
 
-  // Dados paginados
-  const paginatedData = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return filteredMedications.slice(start, start + itemsPerPage);
-  }, [filteredMedications, currentPage]);
+  // Busca de medicamentos
+  const fetchMedications = useCallback(async () => {
+    try {
+      setError(null);
+      NProgress.start();
+      const response =
+        roles === "FARMACIA" || roles === "GERENTE"
+          ? pharmacyId
+            ? await PharmService.getMedicineByPharmacyId(pharmacyId)
+            : await PharmService.getAllMedicines()
+          : await PharmService.getAllMedicines();
 
-  const totalPages = Math.ceil(filteredMedications.length / itemsPerPage);
+      const data = Array.isArray(response)
+        ? response
+        : response && Array.isArray(response.data)
+        ? response.data
+        : [];
+
+      setMedications(data);
+    } catch (err) {
+      const errorMsg =
+        err.response?.data?.error || "Falha ao carregar medicamentos";
+      setError(errorMsg);
+      setMedications([]);
+      showToast(errorMsg, "error");
+    } finally {
+      NProgress.done();
+    }
+  }, [roles, pharmacyId, showToast]);
+
+  // Efeito para buscar medicamentos na montagem
+  useEffect(() => {
+    fetchMedications();
+  }, [fetchMedications]);
+
+  // Definição das colunas para TanStack Table
+  const columns = useMemo(
+    () => [
+      {
+        accessorKey: "medicineName",
+        header: "Medicamento",
+        cell: (info) => (
+          <span
+            className="cursor-pointer text-primary hover:underline font-medium whitespace-nowrap"
+            onClick={() => setSelectedMedicineName(info.row.original)}
+          >
+            {info.getValue()}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "quantity",
+        header: () => <div className="text-center">Quantidade</div>, // Centraliza o cabeçalho
+        cell: (info) => (
+          <div className="text-center whitespace-nowrap">{info.getValue()}</div>
+        ), // Centraliza e evita quebra
+        filterFn: "includesString", // Define o tipo de filtro para esta coluna
+      },
+      {
+        accessorKey: "updatedAt",
+        header: () => <div className="text-center">Última Atualização</div>, // Centraliza o cabeçalho
+        cell: (info) => (
+          <div className="text-center whitespace-nowrap">
+            {info.getValue()
+              ? new Date(info.getValue()).toLocaleDateString("pt-BR")
+              : "N/A"}
+          </div>
+        ),
+      },
+      {
+        accessorKey: "pharmacy.name",
+        header: "Farmácia", // Não centraliza o cabeçalho
+        cell: (info) => (
+          <span
+            className="cursor-pointer text-primary hover:underline font-medium whitespace-nowrap" // Adicionado whitespace-nowrap
+            onClick={() => setSelectedPharmacy(info.row.original.pharmacy)}
+          >
+            {info.getValue()}
+          </span>
+        ),
+        enableSorting: false,
+      },
+      {
+        accessorKey: "category",
+        header: () => <div className="text-center">Categoria</div>, // Centraliza o cabeçalho
+        cell: (info) => (
+          <div className="text-center whitespace-nowrap">{info.getValue()}</div>
+        ), // Centraliza e evita quebra
+        filterFn: "includesString",
+        enableHiding: true,
+      },
+      {
+        accessorKey: "dosageForm",
+        header: () => <div className="text-center">Forma de Dosagem</div>, // Centraliza o cabeçalho
+        cell: (info) => (
+          <div className="text-center whitespace-nowrap">{info.getValue()}</div>
+        ), // Centraliza e evita quebra
+        filterFn: "includesString",
+        enableHiding: true,
+      },
+      {
+        accessorKey: "classification",
+        header: () => <div className="text-center">Classificação</div>, // Centraliza o cabeçalho
+        cell: (info) => (
+          <div className="text-center whitespace-nowrap">{info.getValue()}</div>
+        ), // Centraliza e evita quebra
+        filterFn: "includesString",
+        enableHiding: true,
+      },
+      {
+        id: "actions",
+        header: () => <div className="text-center">Ações</div>, // Centraliza o cabeçalho
+        cell: ({ row }) => (
+          <div className="flex justify-center space-x-2 whitespace-nowrap">
+            {" "}
+            {/* Adicionado whitespace-nowrap no container dos botões */}
+            {roles !== "FARMACIA" && roles !== "GERENTE" && (
+              <button
+                onClick={() => handleReserve(row.original)}
+                className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2"
+                title="Reservar"
+                disabled={row.original.quantity <= 0}
+              >
+                Reservar
+              </button>
+            )}
+            {roles !== "CLIENTE" && (
+              <>
+                <button
+                  onClick={() => handleEdit(row.original)}
+                  className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80 h-9 px-4 py-2"
+                  title="Editar"
+                >
+                  Editar
+                </button>
+                <button
+                  onClick={() => handleDelete(row.original.medicineId)}
+                  className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90 h-9 px-4 py-2"
+                  title="Excluir"
+                >
+                  Excluir
+                </button>
+              </>
+            )}
+            {(roles === "FARMACIA" || roles === "GERENTE") && (
+              <button
+                onClick={() => handleAlert(row.original)}
+                className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
+                title="Criar Alerta"
+              >
+                Alertar
+              </button>
+            )}
+          </div>
+        ),
+        enableSorting: false,
+        enableColumnFilter: false,
+      },
+    ],
+    [
+      roles,
+      handleReserve,
+      handleEdit,
+      handleDelete,
+      handleAlert,
+      showToast,
+      setSelectedMedicineName,
+      setSelectedPharmacy,
+    ]
+  );
+
+  // Instância da tabela
+  const table = useReactTable({
+    data: medications,
+    columns,
+    state: {
+      columnFilters,
+      globalFilter,
+      sorting,
+      pagination,
+    },
+    onColumnFiltersChange: setColumnFilters,
+    onGlobalFilterChange: setGlobalFilter,
+    onSortingChange: setSorting,
+    onPaginationChange: setPagination,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    autoResetPageIndex: false,
+  });
+
+  const onAddClick = () => {
+    document.getElementById("addMedicine").showModal();
+  };
+
+  const onImportClick = () => {
+    setShowImportModal(true);
+  };
+
+  // Funções para pegar as opções únicas para os filtros de seleção
+  const getUniqueOptions = useCallback(
+    (key) => {
+      const options = new Set();
+      medications.forEach((med) => {
+        if (med[key]) options.add(med[key]);
+      });
+      return Array.from(options).sort();
+    },
+    [medications]
+  );
 
   return (
-    <div className="bg-blue-100 dark:bg-slate-900 min-h-screen flex items-center justify-center p-6">
-      <div className="w-full max-w-6xl bg-neutral-600 dark:bg-neutral-900 rounded-lg shadow-lg shadow-neutral-950">
-        <div className="p-1.5 min-w-full inline-block align-middle">
-          <div className="divide-y divide-gray-200 dark:divide-neutral-950">
-            <SearchBar
-              onSearch={handleSearch}
-              onAddClick={() =>
-                document.getElementById("addMedicine").showModal()
-              }
-              onImportClick={() => setShowImportModal(true)} // Novo prop
-              showAddButton={roles !== "CLIENTE"}
-              showImportButton={roles === "GERENTE"} // Novo prop
-              categories={filterOptions.categories}
-              dosageForms={filterOptions.dosageForms}
-              classifications={filterOptions.classifications}
-              onFilterChange={handleFilterChange}
-            />
+    <div className="bg-background min-h-screen flex items-center justify-center p-6">
+      <div className="w-full max-w-6xl shadow-lg border border-border rounded-lg overflow-hidden">
+        <div className="divide-y divide-border">
+          <div className="py-3 px-4 bg-muted/50 flex flex-col md:flex-row gap-4">
+            <div className="flex-1 flex flex-col md:flex-row gap-2">
+              {/* Campo de busca global */}
+              <div className="relative flex-1">
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Busca por medicamentos ou farmácias"
+                  value={globalFilter ?? ""}
+                  onChange={(e) => setGlobalFilter(e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 ps-9 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                />
+              </div>
 
-            {showImportModal && (
-              <ImportMedicinesModal
-                onClose={() => setShowImportModal(false)}
-                onSuccess={fetchMedications}
-              />
+              {/* Filtros de seleção para categorias, formas de dosagem, classificações */}
+              <div className="flex gap-2 flex-1">
+                <select
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50" // Shadcn select classes
+                  value={table.getColumn("category")?.getFilterValue() ?? ""}
+                  onChange={(e) =>
+                    table.getColumn("category")?.setFilterValue(e.target.value)
+                  }
+                >
+                  <option value="">Todas Categorias</option>
+                  {getUniqueOptions("category").map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50" // Shadcn select classes
+                  value={table.getColumn("dosageForm")?.getFilterValue() ?? ""}
+                  onChange={(e) =>
+                    table
+                      .getColumn("dosageForm")
+                      ?.setFilterValue(e.target.value)
+                  }
+                >
+                  <option value="">Todas Formas</option>
+                  {getUniqueOptions("dosageForm").map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50" // Shadcn select classes
+                  value={
+                    table.getColumn("classification")?.getFilterValue() ?? ""
+                  }
+                  onChange={(e) =>
+                    table
+                      .getColumn("classification")
+                      ?.setFilterValue(e.target.value)
+                  }
+                >
+                  <option value="">Todas Classificações</option>
+                  {getUniqueOptions("classification").map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {roles !== "CLIENTE" && (
+              <div className="flex gap-2">
+                <button
+                  onClick={onAddClick}
+                  className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2" // Shadcn button classes
+                  aria-label="Adicionar medicamento"
+                >
+                  <FiPlus className="text-lg" />
+                  <span className="hidden sm:inline">Adicionar</span>
+                </button>
+
+                {roles !== "GERENTE" && (
+                  <button
+                    onClick={onImportClick}
+                    className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2" // Shadcn button classes
+                    aria-label="Importar medicamentos"
+                  >
+                    <FiUploadCloud className="text-lg" />
+                    <span className="hidden sm:inline">Importar</span>
+                  </button>
+                )}
+              </div>
             )}
+          </div>
 
-            <EditMedicationModal
-              isOpen={editModalOpen}
-              onClose={() => setEditModalOpen(false)}
-              selectedMedicine={selectedMedicine}
-              roles={roles}
-              pharmacyId={pharmacyId}
-              register={register}
-              errors={errors}
-              handleSubmit={handleSubmit}
-              onSave={fetchMedications}
-              showToast={showToast}
+          {showImportModal && (
+            <ImportMedicinesModal
+              onClose={() => setShowImportModal(false)}
+              onSuccess={fetchMedications}
             />
-
-            <ReservationModal
-              isOpen={reservationModalOpen}
-              onClose={() => setReservationModalOpen(false)}
-              onSuccess={handleReservationSuccess}
-              medicineId={selectedMedication?.medicineId}
-              medicineName={selectedMedication?.medicineName}
-              requiresPrescription={selectedMedication?.requiresPrescription}
-              showToast={showToast}
-            />
-
-            <div className="overflow-hidden">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-neutral-700">
-                <TableHeader />
-                <tbody className="bg-neutral-200 dark:bg-neutral-800 divide-y divide-gray-200 dark:divide-neutral-950">
-                  {paginatedData.length > 0 ? (
-                    paginatedData.map((medication) => (
-                      <TableRow
-                        key={medication.medicineId}
-                        medication={medication}
-                        roles={roles}
-                        onPharmacyClick={handlePharmacyClick}
-                        onMedicineClick={() =>
-                          setSelectedMedicineName(medication)
-                        }
-                        onEdit={handleEdit}
-                        onDelete={handleDelete}
-                        onReserve={() => handleReserve(medication)}
-                        onAlert={handleAlert}
-                      />
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="5" className="text-center py-4">
-                        {error ? error : "Nenhum dado encontrado"}
-                      </td>
+          )}
+          <EditMedicationModal
+            isOpen={editModalOpen}
+            onClose={() => setEditModalOpen(false)}
+            selectedMedicine={selectedMedicine}
+            roles={roles}
+            pharmacyId={pharmacyId}
+            register={register}
+            errors={errors}
+            handleSubmit={handleSubmit}
+            onSave={fetchMedications}
+            showToast={showToast}
+          />
+          <ReservationModal
+            isOpen={reservationModalOpen}
+            onClose={() => setReservationModalOpen(false)}
+            onSuccess={handleReservationSuccess}
+            medicineId={selectedMedicationForReservation?.medicineId}
+            medicineName={selectedMedicationForReservation?.medicineName}
+            requiresPrescription={
+              selectedMedicationForReservation?.requiresPrescription
+            }
+            showToast={showToast}
+          />
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-border">
+              <thead className="bg-muted/50">
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <tr key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => (
+                      <th
+                        key={header.id}
+                        colSpan={header.colSpan}
+                        className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 cursor-pointer"
+                        onClick={header.column.getToggleSortingHandler()}
+                      >
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                        {{
+                          asc: " 🔼",
+                          desc: " 🔽",
+                        }[header.column.getIsSorted()] ?? null}
+                      </th>
+                    ))}
+                  </tr>
+                ))}
+              </thead>
+              <tbody className="bg-card text-card-foreground divide-y divide-border">
+                {table.getRowModel().rows.length > 0 ? (
+                  table.getRowModel().rows.map((row) => (
+                    <tr
+                      key={row.id}
+                      className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <td
+                          key={cell.id}
+                          className="p-4 align-middle [&:has([role=checkbox])]:pr-0"
+                        >
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </td>
+                      ))}
                     </tr>
-                  )}
-                </tbody>
-              </table>
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan={columns.length}
+                      className="text-center py-4 text-muted-foreground"
+                    >
+                      {error ? error : "Nenhum dado encontrado"}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
 
-              <PaginationControls
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPrev={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                onNext={() =>
-                  setCurrentPage((p) => Math.min(totalPages, p + 1))
-                }
-                prevDisabled={currentPage === 1}
-                nextDisabled={currentPage === totalPages}
-              />
+            {/* Controles de Paginação */}
+            <div className="py-3 px-4 flex justify-between items-center bg-muted/50 text-muted-foreground rounded-b-lg">
+              <button
+                onClick={() => table.previousPage()}
+                disabled={!table.getCanPreviousPage()}
+                className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
+              >
+                Anterior
+              </button>
+              <span className="text-sm">
+                Página{" "}
+                <strong>
+                  {table.getState().pagination.pageIndex + 1} de{" "}
+                  {table.getPageCount()}
+                </strong>
+              </span>
+              <button
+                onClick={() => table.nextPage()}
+                disabled={!table.getCanNextPage()}
+                className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
+              >
+                Próxima
+              </button>
             </div>
           </div>
         </div>
       </div>
 
       {/* Toast Container */}
-      <div className="toast toast-top toast-end">
+      <div className="toast toast-top toast-end z-[9999]">
         {toasts.map((toast) => (
-          <div key={toast.id} className={`alert alert-${toast.type}`}>
+          <div
+            key={toast.id}
+            className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-white shadow transition-colors ${
+              toast.type === "success"
+                ? "bg-chart-2"
+                : toast.type === "error"
+                ? "bg-destructive"
+                : "bg-chart-1"
+            }`}
+          >
             <span>{toast.message}</span>
           </div>
         ))}
@@ -386,31 +618,14 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
           pharmacyId={pharmacyId}
           onMedicationAdded={fetchMedications}
           roles={roles}
+          showToast={showToast}
         />
+        <form method="dialog" className="modal-backdrop">
+          <button>close</button>
+        </form>
       </dialog>
     </div>
   );
 };
-
-const TableHeader = () => (
-  <thead className="bg-neutral-100 dark:bg-neutral-800">
-    <tr>
-      {[
-        "Medicamento",
-        "Quantidade",
-        "Última Atualização",
-        "Farmácia",
-        "Ações",
-      ].map((header, index) => (
-        <th
-          key={index}
-          className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase dark:text-neutral-500"
-        >
-          {header}
-        </th>
-      ))}
-    </tr>
-  </thead>
-);
 
 export default TableContent;
