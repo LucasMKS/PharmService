@@ -3,7 +3,7 @@ import { ThemeProvider } from "next-themes";
 import NextTopLoader from "nextjs-toploader";
 import { Suspense } from "react";
 import "./globals.css";
-import Footer from "@components/Footer";
+import Footer from "@components/layout/Footer";
 import ThemeSwitcher from "@components/theme/ThemeSwitcher";
 import BlockMobile from "@/components/mobile/BlockMobile";
 

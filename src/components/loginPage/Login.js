@@ -26,7 +26,7 @@ export default function LoginPage() {
   } = useForm();
   const [error, setError] = useState("");
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, login } = useAuth();
 
   useEffect(() => {
     setError("");
@@ -41,9 +41,12 @@ export default function LoginPage() {
         alert("E-mail de recuperação enviado! Verifique sua caixa de entrada.");
         setShowForgotPassword(false);
       } else {
-        isLogin
-          ? await PharmService.login(data)
-          : await PharmService.register(data);
+        if (isLogin) {
+          const response = await PharmService.login(data);
+          login(response); // Usar o novo sistema de autenticação
+        } else {
+          await PharmService.register(data);
+        }
 
         router.push("/dashboard");
       }
@@ -55,9 +58,9 @@ export default function LoginPage() {
   };
 
   return (
-    <section className="bg-white dark:bg-gray-900">
+    <section className="bg-background">
       <div className="lg:grid lg:min-h-screen lg:grid-cols-12">
-        <section className="relative flex h-32 items-end bg-gray-900 lg:col-span-5 lg:h-full xl:col-span-6 border-r-2 border-neutral-800">
+        <section className="relative flex h-32 items-end bg-card lg:col-span-5 lg:h-full xl:col-span-6 border-r border-border">
           <Image
             alt="Night"
             src="/images/login/img4.jpg"
@@ -69,7 +72,7 @@ export default function LoginPage() {
             <Link href="/" className="block text-white">
               <span className="sr-only">Home</span>
               <Image
-                src="/images/pharm/PharmService.png" //
+                src="/images/pharm/PharmService.png"
                 width={170}
                 height={260}
                 alt="Logo"
@@ -89,13 +92,13 @@ export default function LoginPage() {
           </div>
         </section>
 
-        <main className="flex items-center justify-center px-8 py-8 sm:px-12 lg:col-span-7 lg:px-16 lg:py-12 xl:col-span-6 ">
-          <div className="w-full max-w-xl lg:max-w-3xl bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
+        <main className="flex items-center justify-center px-8 py-8 sm:px-12 lg:col-span-7 lg:px-16 lg:py-12 xl:col-span-6">
+          <div className="w-full max-w-xl lg:max-w-3xl bg-card rounded-2xl shadow-xl p-8 border border-border">
             <div className="text-center mb-8">
               <div className="inline-block p-3">
                 <span className="sr-only">Home</span>
                 <Image
-                  src="/images/pharm/PharmServiceInv.png" //
+                  src="/images/pharm/PharmServiceInv.png"
                   width={60}
                   height={48}
                   alt="Logo"
@@ -103,10 +106,10 @@ export default function LoginPage() {
                 />
               </div>
 
-              <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
+              <h2 className="text-2xl font-bold text-card-foreground mb-2">
                 {isLogin ? "Acesse sua conta" : "Crie sua conta"}
               </h2>
-              <p className="text-gray-500 dark:text-gray-400">
+              <p className="text-muted-foreground">
                 {isLogin
                   ? "Gerencie seu estoque de forma eficiente"
                   : "Comece a gerenciar sua farmácia agora mesmo"}
@@ -116,41 +119,39 @@ export default function LoginPage() {
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
               {showForgotPassword ? (
                 <>
-                  <div className="form-control">
-                    <label className="label justify-start gap-2">
-                      <FiMail className="w-5 h-5 text-blue-500 dark:text-blue-400" />
-                      <span className="label-text dark:text-gray-300">
-                        E-mail
-                      </span>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-medium text-foreground">
+                      <FiMail className="w-5 h-5 text-primary" />
+                      <span>E-mail</span>
                     </label>
                     <input
                       type="email"
                       {...register("email", { required: "Campo obrigatório" })}
-                      className="input input-bordered bg-white dark:bg-gray-700"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                       placeholder="exemplo@farmacia.com"
                     />
                     {errors.email && (
-                      <div className="flex items-center gap-2 mt-2 text-error">
+                      <div className="flex items-center gap-2 text-sm text-destructive">
                         <FiAlertCircle className="text-sm" />
-                        <span className="text-sm">{errors.email.message}</span>
+                        <span>{errors.email.message}</span>
                       </div>
                     )}
                   </div>
 
                   <button
                     type="submit"
-                    className="btn btn-primary w-full gap-2 hover:scale-[1.02] transition-transform"
+                    className="inline-flex w-full items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-10 px-4 py-2 gap-2"
                   >
                     Enviar e-mail de recuperação
                     <FiArrowRight className="text-lg" />
                   </button>
 
-                  <p className="text-center text-gray-600 dark:text-gray-400">
+                  <p className="text-center text-muted-foreground">
                     Lembrou sua senha?{" "}
                     <button
                       type="button"
                       onClick={() => setShowForgotPassword(false)}
-                      className="text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                      className="text-primary hover:text-primary/80"
                     >
                       Voltar ao login
                     </button>
@@ -160,93 +161,85 @@ export default function LoginPage() {
                 <>
                   {/* Formulário original de login/registro */}
                   {!isLogin && (
-                    <div className="form-control">
+                    <div className="space-y-2">
                       <label
                         htmlFor="nome"
-                        className="label justify-start gap-2"
+                        className="flex items-center gap-2 text-sm font-medium text-foreground"
                       >
-                        <FiUser className="w-5 h-5 text-blue-500 dark:text-blue-400" />
-                        <span className="label-text dark:text-gray-300">
-                          Nome completo
-                        </span>
+                        <FiUser className="w-5 h-5 text-primary" />
+                        <span>Nome completo</span>
                       </label>
 
                       <input
                         type="text"
                         {...register("nome", { required: "Campo obrigatório" })}
-                        className="input input-bordered bg-white dark:bg-gray-700"
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                         placeholder="Ex: João da Silva"
                       />
                       {errors.nome && (
-                        <div className="flex items-center gap-2 mt-2 text-error">
+                        <div className="flex items-center gap-2 text-sm text-destructive">
                           <FiAlertCircle className="text-sm" />
-                          <span className="text-sm">{errors.nome.message}</span>
+                          <span>{errors.nome.message}</span>
                         </div>
                       )}
                     </div>
                   )}
 
-                  <div className="form-control">
-                    <label className="label justify-start gap-2">
-                      <FiMail className="w-5 h-5 text-blue-500 dark:text-blue-400" />
-                      <span className="label-text dark:text-gray-300">
-                        E-mail
-                      </span>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-medium text-foreground">
+                      <FiMail className="w-5 h-5 text-primary" />
+                      <span>E-mail</span>
                     </label>
                     <input
                       type="email"
                       {...register("email", { required: "Campo obrigatório" })}
-                      className="input input-bordered bg-white dark:bg-gray-700"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                       placeholder="exemplo@farmacia.com"
                     />
                     {errors.email && (
-                      <div className="flex items-center gap-2 mt-2 text-error">
+                      <div className="flex items-center gap-2 text-sm text-destructive">
                         <FiAlertCircle className="text-sm" />
-                        <span className="text-sm">{errors.email.message}</span>
+                        <span>{errors.email.message}</span>
                       </div>
                     )}
                   </div>
 
-                  <div className="form-control">
-                    <label className="label justify-start gap-2">
-                      <FiLock className="w-5 h-5 text-blue-500 dark:text-blue-400" />
-                      <span className="label-text dark:text-gray-300">
-                        Senha
-                      </span>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm font-medium text-foreground">
+                      <FiLock className="w-5 h-5 text-primary" />
+                      <span>Senha</span>
                     </label>
                     <input
                       type="password"
                       {...register("password", {
                         required: "Campo obrigatório",
                       })}
-                      className="input input-bordered bg-white dark:bg-gray-700"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                       placeholder="••••••••"
                     />
                     {errors.password && (
-                      <div className="flex items-center gap-2 mt-2 text-error">
+                      <div className="flex items-center gap-2 text-sm text-destructive">
                         <FiAlertCircle className="text-sm" />
-                        <span className="text-sm">
-                          {errors.password.message}
-                        </span>
+                        <span>{errors.password.message}</span>
                       </div>
                     )}
                   </div>
 
                   <button
                     type="submit"
-                    className="btn btn-primary w-full gap-2 hover:scale-[1.02] transition-transform"
+                    className="inline-flex w-full items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-10 px-4 py-2 gap-2"
                   >
                     {isLogin ? "Entrar" : "Cadastrar"}
                     <FiArrowRight className="text-lg" />
                   </button>
 
                   <div className="flex flex-col gap-2">
-                    <p className="text-center text-gray-600 dark:text-gray-400">
+                    <p className="text-center text-muted-foreground">
                       {isLogin ? "Novo por aqui?" : "Já tem uma conta?"}
                       <button
                         type="button"
                         onClick={() => setIsLogin(!isLogin)}
-                        className="ml-2 text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                        className="ml-2 text-primary hover:text-primary/80"
                       >
                         {isLogin ? "Criar conta" : "Fazer login"}
                       </button>
@@ -256,7 +249,7 @@ export default function LoginPage() {
                       <button
                         type="button"
                         onClick={() => setShowForgotPassword(true)}
-                        className="text-center text-blue-600 hover:text-blue-700 dark:text-blue-400 text-sm"
+                        className="text-center text-primary hover:text-primary/80 text-sm"
                       >
                         Esqueci minha senha
                       </button>
@@ -266,7 +259,7 @@ export default function LoginPage() {
               )}
 
               {error && (
-                <div className="alert alert-error py-2">
+                <div className="flex items-center gap-2 p-3 text-sm border border-destructive/50 bg-destructive/10 text-destructive rounded-md">
                   <FiAlertCircle className="text-lg" />
                   <span>{error}</span>
                 </div>

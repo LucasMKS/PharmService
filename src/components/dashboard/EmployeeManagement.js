@@ -1,107 +1,83 @@
+"use client";
 import React, { useState, useEffect } from "react";
-import { FiUserPlus, FiUserX, FiUserCheck } from "react-icons/fi";
-import Cookies from "js-cookie";
+import { FiUserPlus, FiEdit, FiTrash2 } from "react-icons/fi";
 import PharmService from "../services/PharmService";
-import NProgress from "nprogress";
-
-// Configuração do NProgress
-NProgress.configure({
-  showSpinner: false,
-  minimum: 0.3,
-  easing: "ease",
-  speed: 800,
-});
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import AddEmployeeModalContent from "../modals/AddEmployeeModalContent";
+import RemoveEmployeeModalContent from "../modals/RemoveEmployeeModalContent";
 
 const EmployeeManagement = () => {
   const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [newEmployeeEmail, setNewEmployeeEmail] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [toast, setToast] = useState({ show: false, message: "", type: "" });
-  const userRole = Cookies.get("roles");
-  const pharmacyId = Cookies.get("pharmacyId");
+
+  const userRole =
+    typeof window !== "undefined"
+      ? JSON.parse(sessionStorage.getItem("user") || "{}").roles
+      : null;
 
   const showToast = (message, type = "success") => {
     setToast({ show: true, message, type });
-    setTimeout(() => setToast({ show: false, message: "", type: "" }), 5000);
+    setTimeout(() => setToast({ show: false, message: "", type: "" }, 3000));
+  };
+
+  const fetchEmployees = async () => {
+    try {
+      setLoading(true);
+      const response = await PharmService.getAllEmployees();
+      setEmployees(response);
+    } catch (error) {
+      setError("Erro ao carregar funcionários");
+      showToast("Erro ao carregar funcionários", "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     fetchEmployees();
   }, []);
 
-  const fetchEmployees = async () => {
+  const handleAddEmployee = async (employeeData) => {
     try {
-      const data = await (userRole === "ADMIN"
-        ? PharmService.getAllEmployees()
-        : PharmService.getPharmacyEmployees(pharmacyId));
-
-      setEmployees(data);
-      setIsLoading(false);
-    } catch (error) {
-      showToast(error.response?.data?.error, "error");
-      setIsLoading(false);
-    }
-  };
-
-  const handleAddEmployee = async () => {
-    NProgress.start();
-    try {
-      await PharmService.addEmployee(pharmacyId, newEmployeeEmail);
-
+      await PharmService.addEmployee(employeeData);
       showToast("Funcionário adicionado com sucesso!");
       setIsAddDialogOpen(false);
-      setNewEmployeeEmail("");
       fetchEmployees();
     } catch (error) {
-      showToast(error.response?.data?.error, "error");
-    } finally {
-      NProgress.done();
+      showToast("Erro ao adicionar funcionário", "error");
     }
   };
 
-  const handlePromote = async (employeeId) => {
+  const handleRemoveEmployee = async (employeeId) => {
     try {
-      await PharmService.promoteEmployee(employeeId, pharmacyId);
-
-      showToast("Funcionário promovido com sucesso!");
+      await PharmService.removeEmployee(employeeId);
+      showToast("Funcionário removido com sucesso!");
+      setIsRemoveDialogOpen(false);
+      setSelectedEmployee(null);
       fetchEmployees();
     } catch (error) {
-      showToast(error.response?.data?.error, "error");
+      showToast("Erro ao remover funcionário", "error");
     }
   };
 
-  const handleDismiss = async (employeeId) => {
-    if (!window.confirm("Tem certeza que deseja demitir este funcionário?")) {
-      return;
-    }
-
-    try {
-      await PharmService.dismissEmployee(employeeId, pharmacyId);
-
-      showToast("Funcionário demitido com sucesso!");
-      fetchEmployees();
-    } catch (error) {
-      showToast(error.response?.data?.error, "error");
-    }
-  };
-
-  if (isLoading) {
+  if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <span className="loading loading-spinner loading-lg"></span>
-      </div>
-    );
-  }
-
-  // Verifica se o usuário tem permissão para acessar a página
-  if (!["ADMIN", "GERENTE"].includes(userRole)) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="bg-background min-h-screen flex items-center justify-center p-6">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-error">Acesso Negado</h2>
-          <p className="mt-2">
-            Você não tem permissão para acessar esta página.
+          <div className="loading loading-ring loading-lg text-primary"></div>
+          <p className="mt-4 text-muted-foreground">
+            Carregando funcionários...
           </p>
         </div>
       </div>
@@ -109,150 +85,164 @@ const EmployeeManagement = () => {
   }
 
   return (
-    <div className="bg-blue-100 dark:bg-slate-900 min-h-screen flex items-center justify-center p-6">
-      <div className="w-full max-w-6xl bg-neutral-600 dark:bg-neutral-900 rounded-lg shadow-lg shadow-neutral-950 overflow-hidden">
-        <div className="p-1.5 min-w-full inline-block align-middle ">
-          <div className=" divide-y dark:border-neutral-700 divide-gray-200 dark:divide-neutral-950">
-            <div className="py-3 px-4 bg-neutral-100 dark:bg-neutral-800 flex justify-between items-center">
-              <div>
-                <h2 className="text-2xl font-bold text-neutral-900 dark:text-neutral-200">
-                  Gerenciamento de Funcionários
-                </h2>
-              </div>
-              <button
-                onClick={() => setIsAddDialogOpen(true)}
-                className="btn btn-primary"
-              >
-                <FiUserPlus className="mr-2" />
-                Adicionar Funcionário
-              </button>
+    <div className="bg-background min-h-screen flex items-center justify-center p-6">
+      <div className="w-full max-w-6xl shadow-lg border border-border rounded-lg overflow-hidden">
+        <div className="divide-y divide-border">
+          <div className="py-3 px-4 bg-muted/50 flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-bold text-foreground">
+                Gerenciamento de Funcionários
+              </h2>
             </div>
+            <button
+              onClick={() => setIsAddDialogOpen(true)}
+              className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-10 px-4 py-2"
+            >
+              <FiUserPlus className="mr-2" />
+              Adicionar Funcionário
+            </button>
+          </div>
 
-            <div className="overflow-hidden">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-neutral-700">
-                <thead className="bg-neutral-100 dark:bg-neutral-800">
-                  <tr>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-gray-300"
-                    >
-                      Nome
+          <div className="overflow-hidden">
+            <table className="min-w-full divide-y divide-border">
+              <thead className="bg-muted/50">
+                <tr>
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-start text-xs font-medium text-muted-foreground uppercase"
+                  >
+                    Nome
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-start text-xs font-medium text-muted-foreground uppercase"
+                  >
+                    Email
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-start text-xs font-medium text-muted-foreground uppercase"
+                  >
+                    Cargo
+                  </th>
+                  {Array.isArray(userRole) && userRole.includes("ADMIN") && (
+                    <th className="px-6 py-3 text-start text-xs font-medium text-muted-foreground uppercase">
+                      Farmácia
                     </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-gray-300"
+                  )}
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-start text-xs font-medium text-muted-foreground uppercase"
+                  >
+                    Ações
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-card text-card-foreground divide-y divide-border">
+                {employees.length > 0 ? (
+                  employees.map((employee) => (
+                    <tr
+                      key={employee.id}
+                      className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
                     >
-                      Email
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-gray-300"
-                    >
-                      Cargo
-                    </th>
-                    {userRole === "ADMIN" && <th>Farmácia</th>}
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-gray-300"
-                    >
-                      Ações
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-neutral-200 dark:bg-neutral-800 divide-y divide-gray-200 dark:divide-neutral-950">
-                  {employees.map((employee) => (
-                    <tr key={employee.id}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
                         {employee.name}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                         {employee.email}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200">
-                        {employee.roles?.includes("GERENTE")
-                          ? "Gerente"
-                          : employee.roles?.includes("FARMACIA")
-                          ? "Farmacêutico"
-                          : "Funcionário"}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                        {employee.roles}
                       </td>
-                      {userRole === "ADMIN" && <td>{employee.pharmacyName}</td>}
-                      <td className="p-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200">
-                        {employee.roles?.includes("FARMACIA") && (
-                          <button
-                            onClick={() => handlePromote(employee.id)}
-                            className="btn btn-success btn-sm mr-2"
-                          >
-                            <FiUserCheck className="mr-1" />
-                            Promover
-                          </button>
+                      {Array.isArray(userRole) &&
+                        userRole.includes("ADMIN") && (
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                            {employee.pharmacy?.name || "N/A"}
+                          </td>
                         )}
-                        {(employee.roles?.includes("FARMACIA") ||
-                          employee.roles?.includes("GERENTE")) && (
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
+                        <div className="flex space-x-2">
                           <button
-                            onClick={() => handleDismiss(employee.id)}
-                            className="btn btn-error btn-sm"
+                            className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90 h-8 w-8"
+                            onClick={() => {
+                              setSelectedEmployee(employee);
+                              setIsRemoveDialogOpen(true);
+                            }}
+                            title="Remover funcionário"
                           >
-                            <FiUserX className="mr-1" />
-                            Demitir
+                            <FiTrash2 className="text-sm" />
                           </button>
-                        )}
+                        </div>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Modal de Adicionar Funcionário */}
-            <dialog className={`modal ${isAddDialogOpen ? "modal-open" : ""}`}>
-              <div className="modal-box">
-                <h3 className="font-bold text-lg mb-4">
-                  Adicionar Novo Funcionário
-                </h3>
-                <div className="form-control">
-                  <input
-                    type="email"
-                    placeholder="Email do funcionário"
-                    className="input input-bordered w-full"
-                    value={newEmployeeEmail}
-                    onChange={(e) => setNewEmployeeEmail(e.target.value)}
-                  />
-                </div>
-                <div className="modal-action">
-                  <button
-                    className="btn btn-ghost"
-                    onClick={() => setIsAddDialogOpen(false)}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    className="btn btn-primary"
-                    onClick={handleAddEmployee}
-                    disabled={!newEmployeeEmail}
-                  >
-                    Adicionar
-                  </button>
-                </div>
-              </div>
-              <form method="dialog" className="modal-backdrop">
-                <button onClick={() => setIsAddDialogOpen(false)}>close</button>
-              </form>
-            </dialog>
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan={
+                        Array.isArray(userRole) && userRole.includes("ADMIN")
+                          ? 5
+                          : 4
+                      }
+                      className="text-center py-4 text-muted-foreground"
+                    >
+                      {error ? error : "Nenhum funcionário encontrado"}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
 
       {toast.show && (
-        <div className={`toast toast-top toast-end z-50`}>
+        <div className="toast toast-top toast-end z-50">
           <div
-            className={`alert ${
-              toast.type === "error" ? "alert-error" : "alert-success"
+            className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-white shadow transition-colors ${
+              toast.type === "error" ? "bg-destructive" : "bg-chart-2"
             }`}
           >
             <span>{toast.message}</span>
           </div>
         </div>
       )}
+
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Adicionar Funcionário</DialogTitle>
+            <DialogDescription>
+              Preencha os dados para adicionar um novo funcionário.
+            </DialogDescription>
+          </DialogHeader>
+          <AddEmployeeModalContent
+            onAdd={handleAddEmployee}
+            onCancel={() => setIsAddDialogOpen(false)}
+            loading={false}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isRemoveDialogOpen} onOpenChange={setIsRemoveDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Remover Funcionário</DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja remover este funcionário?
+            </DialogDescription>
+          </DialogHeader>
+          <RemoveEmployeeModalContent
+            employee={selectedEmployee}
+            onConfirm={handleRemoveEmployee}
+            onCancel={() => {
+              setIsRemoveDialogOpen(false);
+              setSelectedEmployee(null);
+            }}
+            loading={false}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

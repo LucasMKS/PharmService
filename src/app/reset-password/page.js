@@ -37,13 +37,13 @@ export default function ResetPasswordPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
-        <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md max-w-md w-full text-center">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="bg-card p-8 rounded-lg shadow-md max-w-md w-full text-center border border-border">
           <FiCheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
+          <h2 className="text-2xl font-bold text-card-foreground mb-2">
             Senha redefinida com sucesso!
           </h2>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-muted-foreground">
             Redirecionando para o login...
           </p>
         </div>
@@ -52,25 +52,23 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md max-w-md w-full">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="bg-card p-8 rounded-lg shadow-md max-w-md w-full border border-border">
         <div className="text-center mb-8">
-          <div className="inline-block p-3 bg-blue-100 dark:bg-gray-700 rounded-full mb-4">
-            <FiLock className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+          <div className="inline-block p-3 bg-muted rounded-full mb-4">
+            <FiLock className="w-8 h-8 text-primary" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
+          <h2 className="text-2xl font-bold text-card-foreground mb-2">
             Redefinir Senha
           </h2>
-          <p className="text-gray-500 dark:text-gray-400">
-            Digite sua nova senha
-          </p>
+          <p className="text-muted-foreground">Digite sua nova senha</p>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          <div className="form-control">
-            <label className="label justify-start gap-2">
-              <FiLock className="w-5 h-5 text-blue-500 dark:text-blue-400" />
-              <span className="label-text dark:text-gray-300">Nova Senha</span>
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm font-medium text-foreground">
+              <FiLock className="w-5 h-5 text-primary" />
+              <span>Nova Senha</span>
             </label>
             <input
               type="password"
@@ -81,23 +79,21 @@ export default function ResetPasswordPage() {
                   message: "Mínimo de 6 caracteres",
                 },
               })}
-              className="input input-bordered bg-white dark:bg-gray-700"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               placeholder="••••••••"
             />
             {errors.newPassword && (
-              <div className="flex items-center gap-2 mt-2 text-error">
+              <div className="flex items-center gap-2 text-sm text-destructive">
                 <FiAlertCircle className="text-sm" />
-                <span className="text-sm">{errors.newPassword.message}</span>
+                <span>{errors.newPassword.message}</span>
               </div>
             )}
           </div>
 
-          <div className="form-control">
-            <label className="label justify-start gap-2">
-              <FiLock className="w-5 h-5 text-blue-500 dark:text-blue-400" />
-              <span className="label-text dark:text-gray-300">
-                Confirmar Senha
-              </span>
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm font-medium text-foreground">
+              <FiLock className="w-5 h-5 text-primary" />
+              <span>Confirmar Senha</span>
             </label>
             <input
               type="password"
@@ -106,21 +102,19 @@ export default function ResetPasswordPage() {
                 validate: (val) =>
                   val === watch("newPassword") || "Senhas não coincidem",
               })}
-              className="input input-bordered bg-white dark:bg-gray-700"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               placeholder="••••••••"
             />
             {errors.confirmPassword && (
-              <div className="flex items-center gap-2 mt-2 text-error">
+              <div className="flex items-center gap-2 text-sm text-destructive">
                 <FiAlertCircle className="text-sm" />
-                <span className="text-sm">
-                  {errors.confirmPassword.message}
-                </span>
+                <span>{errors.confirmPassword.message}</span>
               </div>
             )}
           </div>
 
           {error && (
-            <div className="alert alert-error py-2">
+            <div className="flex items-center gap-2 p-3 text-sm border border-destructive/50 bg-destructive/10 text-destructive rounded-md">
               <FiAlertCircle className="text-lg" />
               <span>{error}</span>
             </div>
@@ -128,7 +122,7 @@ export default function ResetPasswordPage() {
 
           <button
             type="submit"
-            className="btn btn-primary w-full gap-2 hover:scale-[1.02] transition-transform"
+            className="inline-flex w-full items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-10 px-4 py-2 gap-2"
           >
             Redefinir Senha
             <FiArrowRight className="text-lg" />

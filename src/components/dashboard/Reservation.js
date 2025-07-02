@@ -1,23 +1,31 @@
 "use client";
-import React, { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import Cookies from "js-cookie";
-import PharmService from "../services/PharmService";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
-  FiAlertCircle,
+  FiEdit,
   FiCheckCircle,
   FiXCircle,
-  FiEdit,
+  FiAlertCircle,
+  FiEye,
 } from "react-icons/fi";
-import NProgress from "nprogress";
-
-// Configuração do NProgress
-NProgress.configure({
-  showSpinner: false,
-  minimum: 0.3,
-  easing: "ease",
-  speed: 800,
-});
+import PharmService from "../services/PharmService";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import ManageReservationModalContent from "../modals/ManageReservationModalContent";
+import UserInfoModalContent from "../modals/UserInfoModalContent";
+import {
+  useReactTable,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  flexRender,
+} from "@tanstack/react-table";
 
 const StatusBadge = ({ status }) => {
   const statusConfig = {
@@ -50,127 +58,32 @@ const StatusBadge = ({ status }) => {
   );
 };
 
-const ManageModal = ({ isOpen, onClose, reservation, onManage }) => {
-  const { register, handleSubmit, watch } = useForm();
-  const selectedStatus = watch("status", "aprovado");
-
-  const onSubmit = (data) => {
-    onManage(reservation.id, data.status, data.message);
-    onClose();
-  };
-
-  if (!isOpen) return null;
-
-  return (
-    <dialog className="modal modal-bottom sm:modal-middle" open>
-      <div className="modal-box dark:bg-neutral-800">
-        <h3 className="font-bold text-lg dark:text-white">Gerenciar Reserva</h3>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-4">
-          <div className="form-control">
-            <label className="label">
-              <span className="label-text dark:text-gray-300">Novo Status</span>
-            </label>
-            <select
-              className="select select-bordered w-full dark:bg-neutral-700 dark:text-white"
-              {...register("status", { required: true })}
-              defaultValue="aprovado"
-            >
-              <option value="aprovado" className="dark:bg-neutral-800">
-                Aprovar
-              </option>
-              <option value="cancelado" className="dark:bg-neutral-800">
-                Cancelar
-              </option>
-            </select>
-          </div>
-
-          {selectedStatus === "cancelado" && (
-            <div className="form-control">
-              <label className="label">
-                <span className="label-text dark:text-gray-300">
-                  Mensagem (Obrigatória para cancelamento)
-                </span>
-              </label>
-              <textarea
-                className="textarea textarea-bordered dark:bg-neutral-700 dark:text-white"
-                {...register("message", {
-                  required: selectedStatus === "cancelado",
-                })}
-                placeholder="Motivo do cancelamento..."
-              />
-            </div>
-          )}
-
-          <div className="modal-action">
-            <button
-              type="button"
-              className="btn dark:text-white"
-              onClick={onClose}
-            >
-              Cancelar
-            </button>
-            <button type="submit" className="btn btn-primary">
-              Confirmar
-            </button>
-          </div>
-        </form>
-      </div>
-    </dialog>
-  );
-};
-
-const UserInfoModal = ({ user, onClose }) => {
-  if (!user) return null;
-
-  return (
-    <dialog className="modal modal-open">
-      <div className="modal-box dark:bg-neutral-800">
-        <h3 className="font-bold text-lg dark:text-white">
-          Informações do Usuário
-        </h3>
-
-        <div className="space-y-4 mt-4">
-          <div>
-            <label className="label-text dark:text-gray-300">Nome:</label>
-            <p className="dark:text-gray-400">{user.name}</p>
-          </div>
-
-          <div>
-            <label className="label-text dark:text-gray-300">Email:</label>
-            <p className="dark:text-gray-400">{user.email}</p>
-          </div>
-
-          <div>
-            <label className="label-text dark:text-gray-300">Perfil:</label>
-            <p className="dark:text-gray-400">
-              {user.roles?.join(", ") || "N/A"}
-            </p>
-          </div>
-        </div>
-
-        <div className="modal-action">
-          <button className="btn dark:text-white" onClick={onClose}>
-            Fechar
-          </button>
-        </div>
-      </div>
-    </dialog>
-  );
-};
-
 const Reservation = () => {
   const [reservations, setReservations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
+  const [error, setError] = useState(null);
+  const [manageModalOpen, setManageModalOpen] = useState(false);
   const [selectedReservation, setSelectedReservation] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
-  const [manageModalOpen, setManageModalOpen] = useState(false);
   const [toast, setToast] = useState({ show: false, message: "", type: "" });
-  const itemsPerPage = 10;
 
-  const roles = Cookies.get("roles");
-  const userId = Cookies.get("userId");
+  // Estados do TanStack Table
+  const [columnFilters, setColumnFilters] = useState([]);
+  const [globalFilter, setGlobalFilter] = useState("");
+  const [sorting, setSorting] = useState([]);
+  const [pagination, setPagination] = useState({
+    pageIndex: 0,
+    pageSize: 10,
+  });
+
+  const roles =
+    typeof window !== "undefined"
+      ? JSON.parse(sessionStorage.getItem("user") || "{}").roles
+      : null;
+  const pharmacyId =
+    typeof window !== "undefined"
+      ? JSON.parse(sessionStorage.getItem("user") || "{}").pharmacyId
+      : null;
 
   const showToast = (message, type = "success") => {
     setToast({ show: true, message, type });
@@ -179,268 +92,286 @@ const Reservation = () => {
 
   const fetchReservations = async () => {
     try {
+      setLoading(true);
+      console.log("Buscando reservas...");
       let response;
-      if (roles === "CLIENTE") {
-        response = await PharmService.getReservationsByUser(userId);
+      if (Array.isArray(roles) && roles.includes("CLIENTE")) {
+        response = await PharmService.getReservationsByUser();
       } else {
         response = await PharmService.getAllReservations();
       }
-
-      setReservations(response);
-      setLoading(false);
+      console.log("Resposta da API:", response);
+      setReservations(Array.isArray(response) ? response : []);
     } catch (error) {
-      showToast("Falha ao carregar reservas: " + error.message, "error");
+      console.error("Erro detalhado ao carregar reservas:", error);
+      setError("Erro ao carregar reservas");
+      showToast("Erro ao carregar reservas", "error");
+    } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchReservations();
-  }, [roles]);
+  }, []);
 
-  const handleManage = async (reservationId, status, message) => {
-    NProgress.start();
-
+  const handleStatusUpdate = async (reservationId, newStatus) => {
     try {
-      await PharmService.manageReservation(reservationId, status, message);
+      await PharmService.updateReservationStatus(reservationId, newStatus);
+      showToast("Status da reserva atualizado com sucesso!");
+      setManageModalOpen(false);
+      setSelectedReservation(null);
       fetchReservations();
-      showToast("Reserva atualizada com sucesso!");
     } catch (error) {
-      showToast("Erro ao atualizar reserva: " + error.message, "error");
-    } finally {
-      NProgress.done();
+      showToast("Erro ao atualizar status da reserva", "error");
     }
   };
 
-  const filteredReservations = reservations.filter((reservation) => {
-    const medicine = reservation.medicineName || "";
-    const pharmacy = reservation.pharmacyName || "";
-
-    const search = searchTerm.toLowerCase();
-
-    return (
-      medicine.toLowerCase().includes(search) ||
-      pharmacy.toLowerCase().includes(search)
-    );
-  });
-
-  const formatProtocol = (fileName) => {
-    if (!fileName) return "N/A";
-
-    // Verifica se é um arquivo (tem extensão)
-    const isFile = fileName.match(/\.(pdf|png|jpg|jpeg)$/i);
-
-    // Se for protocolo gerado (não tem extensão)
-    if (!isFile) {
-      return fileName; // Já é o protocolo gerado
+  const handleUserClick = async (userId) => {
+    try {
+      const userData = await PharmService.getUserById(userId);
+      setSelectedUser(userData);
+    } catch (error) {
+      showToast("Erro ao carregar dados do usuário", "error");
     }
-
-    // Se for arquivo, formata normalmente
-    const protocol = fileName.split("/").pop();
-    const nameWithoutExtension = protocol.split(".").slice(0, -1).join(".");
-    return nameWithoutExtension.split("_")[0];
   };
 
-  // Paginação
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentReservations = filteredReservations.slice(
-    indexOfFirstItem,
-    indexOfLastItem
+  // Definição das colunas para TanStack Table
+  const columns = useMemo(
+    () => [
+      {
+        accessorKey: "user.name",
+        header: "Usuário",
+        cell: (info) => (
+          <button
+            onClick={() => handleUserClick(info.row.original.user.id)}
+            className="text-primary hover:underline font-medium"
+          >
+            {info.getValue()}
+          </button>
+        ),
+      },
+      {
+        accessorKey: "medicine.medicineName",
+        header: "Medicamento",
+        cell: (info) => info.getValue(),
+      },
+      {
+        accessorKey: "medicine.pharmacy.name",
+        header: "Farmácia",
+        cell: (info) => info.getValue(),
+      },
+      {
+        accessorKey: "prescriptionUrl",
+        header: "Protocolo / Prescrição",
+        cell: (info) => {
+          const row = info.row.original;
+          const requiresPrescription = row.medicine?.requiresPrescription;
+          const prescriptionUrl = info.getValue();
+          const protocol = row.protocol;
+          // Se não exige prescrição, mostre o protocolo em badge
+          if (!requiresPrescription) {
+            return (
+              <span
+                className="inline-block bg-muted px-2 py-1 rounded text-xs font-mono text-foreground/80 max-w-xs truncate"
+                title="Identificador único da reserva"
+              >
+                {protocol || (
+                  <span className="text-muted-foreground italic">N/A</span>
+                )}
+              </span>
+            );
+          }
+          // Se exige prescrição e tem URL, mostre o link com ícone
+          if (requiresPrescription && prescriptionUrl) {
+            return (
+              <a
+                href={prescriptionUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-primary font-semibold hover:underline max-w-xs truncate"
+                title="Visualizar prescrição"
+              >
+                <FiEye className="text-base" />
+                Ver Prescrição
+              </a>
+            );
+          }
+          // Se exige prescrição mas não tem imagem
+          return <span className="text-muted-foreground italic">N/A</span>;
+        },
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: (info) => <StatusBadge status={info.getValue()} />,
+      },
+      {
+        accessorKey: "expirationDate",
+        header: "Data Expiração",
+        cell: (info) => new Date(info.getValue()).toLocaleDateString("pt-BR"),
+      },
+      {
+        id: "actions",
+        header: "Ações",
+        cell: ({ row }) =>
+          (!Array.isArray(roles) || !roles.includes("CLIENTE")) && (
+            <div className="flex space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSelectedReservation(row.original);
+                  setManageModalOpen(true);
+                }}
+                disabled={row.original.status !== "pendente"}
+                title="Gerenciar reserva"
+              >
+                <FiEdit className="text-sm" />
+              </Button>
+            </div>
+          ),
+        enableSorting: false,
+      },
+    ],
+    [roles, handleUserClick]
   );
-  const totalPages = Math.ceil(filteredReservations.length / itemsPerPage);
 
-  const handleNextPage = () =>
-    currentPage < totalPages && setCurrentPage((p) => p + 1);
-  const handlePrevPage = () => currentPage > 1 && setCurrentPage((p) => p - 1);
+  // Instância da tabela
+  const table = useReactTable({
+    data: reservations,
+    columns,
+    state: {
+      columnFilters,
+      globalFilter,
+      sorting,
+      pagination,
+    },
+    onColumnFiltersChange: setColumnFilters,
+    onGlobalFilterChange: setGlobalFilter,
+    onSortingChange: setSorting,
+    onPaginationChange: setPagination,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    autoResetPageIndex: false,
+  });
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <span className="loading loading-spinner loading-lg"></span>
+      <div className="bg-background min-h-screen flex items-center justify-center p-6">
+        <div className="text-center">
+          <div className="loading loading-ring loading-lg text-primary"></div>
+          <p className="mt-4 text-muted-foreground">Carregando reservas...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-blue-100 dark:bg-slate-900 min-h-screen flex items-center justify-center p-6">
-      <div className="w-full max-w-7xl bg-neutral-600 dark:bg-neutral-900 rounded-lg shadow-lg shadow-neutral-950 overflow-hidden">
-        <div className="p-1.5 min-w-full inline-block align-middle">
-          <div className="divide-y divide-gray-200 dark:divide-neutral-950">
-            <div className="py-3 px-4 bg-neutral-100 dark:bg-neutral-800 flex justify-between items-center">
-              <div className="flex justify-between items-center mb-4">
-                <input
-                  type="text"
-                  placeholder="Buscar reservas..."
-                  className="input input-bordered w-56 max-w-xs h-10 dark:bg-neutral-700 dark:text-white"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-            </div>
+    <div className="bg-background min-h-screen flex items-center justify-center p-6">
+      <div className="w-full max-w-6xl shadow-lg border border-border rounded-lg overflow-hidden">
+        <div className="divide-y divide-border">
+          <div className="py-3 px-4 bg-muted/50">
+            <h2 className="text-2xl font-bold text-foreground">
+              Gerenciamento de Reservas
+            </h2>
+          </div>
 
-            <div className="overflow-hidden">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-neutral-700">
-                <thead className="bg-neutral-100 dark:bg-neutral-800">
-                  <tr>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-gray-300"
-                    >
-                      Usuário
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-gray-300"
-                    >
-                      Medicamento
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-gray-300"
-                    >
-                      Farmácia
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-gray-300"
-                    >
-                      Protocolo / Prescrição
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-gray-300"
-                    >
-                      Status
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-gray-300"
-                    >
-                      Data Expiração
-                    </th>
-                    {roles !== "CLIENTE" && (
+          <div className="overflow-hidden">
+            <table className="min-w-full divide-y divide-border">
+              <thead className="bg-muted/50">
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <tr key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => (
                       <th
-                        scope="col"
-                        className="px-6 py-3 text-start text-xs font-medium text-gray-500 uppercase dark:text-gray-300"
+                        key={header.id}
+                        colSpan={header.colSpan}
+                        className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 cursor-pointer"
+                        onClick={header.column.getToggleSortingHandler()}
                       >
-                        Ações
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                        {{
+                          asc: " 🔼",
+                          desc: " 🔽",
+                        }[header.column.getIsSorted()] ?? null}
                       </th>
-                    )}
+                    ))}
                   </tr>
-                </thead>
-                <tbody className="bg-neutral-200 dark:bg-neutral-800 divide-y divide-gray-200 dark:divide-neutral-950">
-                  {currentReservations.map((reservation) => {
-                    const protocol = formatProtocol(
-                      reservation.prescriptionPath
-                    );
-                    const medicineName =
-                      reservation.medicineName || "Não disponível";
-                    const pharmacyName =
-                      reservation.pharmacyName || "Não disponível";
-                    const expirationDate =
-                      new Date(reservation.expirationDate).toLocaleString() ||
-                      "Data inválida";
-
-                    return (
-                      <tr key={reservation.id}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200">
-                          <button
-                            className="text-blue-500 hover:text-blue-700 dark:text-blue-400"
-                            onClick={() => setSelectedUser(reservation.user)}
-                          >
-                            {reservation.user?.name || "N/A"}
-                          </button>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200">
-                          {medicineName}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200">
-                          {pharmacyName}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200">
-                          {reservation.prescriptionPath ? (
-                            reservation.prescriptionPath.match(
-                              /\.(pdf|png|jpg|jpeg)$/i
-                            ) ? (
-                              <a
-                                href={`${reservation.prescriptionPath}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-500 hover:text-blue-700 dark:text-blue-400"
-                              >
-                                {formatProtocol(reservation.prescriptionPath)}
-                              </a>
-                            ) : (
-                              <span className="text-gray-500 dark:text-gray-400">
-                                {formatProtocol(reservation.prescriptionPath)}
-                              </span>
-                            )
-                          ) : (
-                            "N/A"
+                ))}
+              </thead>
+              <tbody className="bg-card text-card-foreground divide-y divide-border">
+                {table.getRowModel().rows.length > 0 ? (
+                  table.getRowModel().rows.map((row) => (
+                    <tr
+                      key={row.id}
+                      className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <td
+                          key={cell.id}
+                          className="p-4 align-middle [&:has([role=checkbox])]:pr-0"
+                        >
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200">
-                          <StatusBadge status={reservation.status} />
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200">
-                          {expirationDate}
-                        </td>
-                        {roles !== "CLIENTE" && (
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800 dark:text-neutral-200">
-                            <div className="flex space-x-2">
-                              <button
-                                className={
-                                  reservation.status !== "pendente"
-                                    ? "btn btn-sm btn-warning dark:bg-slate-800 dark:text-white"
-                                    : "btn btn-sm btn-warning dark:bg-amber-600 dark:text-white"
-                                }
-                                onClick={() => {
-                                  setSelectedReservation(reservation);
-                                  setManageModalOpen(true);
-                                }}
-                                disabled={reservation.status !== "pendente"}
-                              >
-                                <FiEdit />
-                              </button>
-                            </div>
-                          </td>
-                        )}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                      ))}
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan={columns.length}
+                      className="text-center py-4 text-muted-foreground"
+                    >
+                      {error ? error : "Nenhuma reserva encontrada"}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
 
-            <div className="py-2 px-4 bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center space-x-4">
-              <button
-                onClick={handlePrevPage}
-                disabled={currentPage === 1}
-                className="px-4 py-2 text-sm font-medium text-white bg-gray-600 hover:bg-gray-500 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+            {/* Controles de Paginação */}
+            <div className="py-3 px-4 flex justify-between items-center bg-muted/50 text-muted-foreground rounded-b-lg">
+              <Button
+                onClick={() => table.previousPage()}
+                disabled={!table.getCanPreviousPage()}
+                variant="outline"
               >
                 Anterior
-              </button>
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Página {currentPage} de {totalPages}
+              </Button>
+              <span className="text-sm">
+                Página{" "}
+                <strong>
+                  {table.getState().pagination.pageIndex + 1} de{" "}
+                  {table.getPageCount()}
+                </strong>
               </span>
-              <button
-                onClick={handleNextPage}
-                disabled={currentPage === totalPages}
-                className="px-4 py-2 text-sm font-medium text-white bg-gray-600 hover:bg-gray-500 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+              <Button
+                onClick={() => table.nextPage()}
+                disabled={!table.getCanNextPage()}
+                variant="outline"
               >
                 Próxima
-              </button>
+              </Button>
             </div>
           </div>
         </div>
       </div>
 
       {toast.show && (
-        <div className={`toast toast-top toast-end z-50`}>
+        <div className="toast toast-top toast-end z-50">
           <div
-            className={`alert ${
-              toast.type === "error" ? "alert-error" : "alert-success"
+            className={`flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium text-white shadow transition-colors ${
+              toast.type === "error" ? "bg-destructive" : "bg-chart-2"
             }`}
           >
             <span>{toast.message}</span>
@@ -448,17 +379,40 @@ const Reservation = () => {
         </div>
       )}
 
-      <UserInfoModal
-        user={selectedUser}
-        onClose={() => setSelectedUser(null)}
-      />
+      <Dialog open={manageModalOpen} onOpenChange={setManageModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Gerenciar Reserva</DialogTitle>
+            <DialogDescription>
+              Aprove ou rejeite esta reserva de medicamento.
+            </DialogDescription>
+          </DialogHeader>
+          <ManageReservationModalContent
+            reservation={selectedReservation}
+            onConfirm={handleStatusUpdate}
+            onCancel={() => {
+              setManageModalOpen(false);
+              setSelectedReservation(null);
+            }}
+            loading={false}
+          />
+        </DialogContent>
+      </Dialog>
 
-      <ManageModal
-        isOpen={manageModalOpen}
-        onClose={() => setManageModalOpen(false)}
-        reservation={selectedReservation}
-        onManage={handleManage}
-      />
+      <Dialog open={!!selectedUser} onOpenChange={() => setSelectedUser(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Informações do Usuário</DialogTitle>
+            <DialogDescription>
+              Veja os dados do usuário da reserva.
+            </DialogDescription>
+          </DialogHeader>
+          <UserInfoModalContent
+            user={selectedUser}
+            onClose={() => setSelectedUser(null)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

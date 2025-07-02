@@ -10,16 +10,19 @@ import {
   FiAlertCircle,
   FiLogOut,
   FiFileText,
+  FiSettings,
 } from "react-icons/fi";
 import { useAuth } from "@/hooks/useAuth";
-import AlertsDrawer from "./AlertsDrawer";
+import AlertsDrawer from "../dashboard/AlertsDrawer";
 import PharmService from "../services/PharmService";
+import UserSettingsModalContent from "../modals/UserSettingsModalContent";
 
 const Sidebar = ({ setSelectedContent, refreshAlerts, userAlerts }) => {
   const [open, setOpen] = useState(true);
   const [selected, setSelected] = useState("Dashboard");
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const [alertsDrawerOpen, setAlertsDrawerOpen] = useState(false);
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const roles = user ? user.roles : "";
 
   // Função para deletar alerta
@@ -34,6 +37,13 @@ const Sidebar = ({ setSelectedContent, refreshAlerts, userAlerts }) => {
     }
   };
 
+  // Função para atualizar dados do usuário
+  const handleUserUpdate = (updatedUser) => {
+    if (updatedUser) {
+      updateUser(updatedUser);
+    }
+  };
+
   const handleOptionSelect = (title) => {
     setSelected(title);
     setSelectedContent(title);
@@ -42,14 +52,18 @@ const Sidebar = ({ setSelectedContent, refreshAlerts, userAlerts }) => {
   return (
     <motion.nav
       layout
-      className="sticky top-0 h-screen shrink-0 border-r border-slate-300 bg-white p-2"
+      className="sticky top-0 h-screen shrink-0 border-r border-border bg-card p-2"
       style={{
         width: open ? "225px" : "fit-content",
       }}
     >
       {/* Top Section */}
       <div>
-        <TitleSection open={open} user={user} />
+        <TitleSection
+          open={open}
+          user={user}
+          onSettingsClick={() => setSettingsModalOpen(true)}
+        />
         <div className="space-y-1">
           <Option
             Icon={FiHome}
@@ -66,7 +80,7 @@ const Sidebar = ({ setSelectedContent, refreshAlerts, userAlerts }) => {
             open={open}
           />
 
-          {roles == "GERENTE" && (
+          {Array.isArray(roles) && roles.includes("GERENTE") && (
             <Option
               Icon={FiMonitor}
               title="Funcionarios"
@@ -76,7 +90,7 @@ const Sidebar = ({ setSelectedContent, refreshAlerts, userAlerts }) => {
             />
           )}
 
-          {roles === "GERENTE" && (
+          {Array.isArray(roles) && roles.includes("GERENTE") && (
             <Option
               Icon={FiFileText}
               title="Relatórios"
@@ -86,7 +100,7 @@ const Sidebar = ({ setSelectedContent, refreshAlerts, userAlerts }) => {
             />
           )}
 
-          {roles === "ADMIN" && (
+          {Array.isArray(roles) && roles.includes("ADMIN") && (
             <Option
               Icon={FiFileText}
               title="Farmácias"
@@ -96,14 +110,14 @@ const Sidebar = ({ setSelectedContent, refreshAlerts, userAlerts }) => {
             />
           )}
 
-          {roles == "CLIENTE" && (
+          {Array.isArray(roles) && roles.includes("CLIENTE") && (
             <div className="relative">
               <button
                 onClick={() => {
                   setAlertsDrawerOpen(true);
                   refreshAlerts();
                 }}
-                className="group flex h-10 w-full items-center rounded-md transition-colors text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                className="group flex h-10 w-full items-center rounded-md transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground"
               >
                 <div className="grid h-full w-10 place-content-center text-lg">
                   <FiAlertCircle className="transition-transform group-hover:scale-110" />
@@ -116,7 +130,7 @@ const Sidebar = ({ setSelectedContent, refreshAlerts, userAlerts }) => {
                   >
                     <span className="text-xs font-medium">Ver Alertas</span>
                     {userAlerts.length > 0 && (
-                      <span className="badge badge-sm badge-primary animate-pulse">
+                      <span className="inline-flex items-center rounded-full bg-primary px-2.5 py-0.5 text-xs font-medium text-primary-foreground animate-pulse">
                         {userAlerts.length}
                       </span>
                     )}
@@ -136,6 +150,19 @@ const Sidebar = ({ setSelectedContent, refreshAlerts, userAlerts }) => {
         </div>
       </div>
 
+      {/* Modal de Configurações do Usuário */}
+      {settingsModalOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50">
+          <div className="max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <UserSettingsModalContent
+              user={user}
+              onClose={() => setSettingsModalOpen(false)}
+              onUpdate={handleUserUpdate}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Bottom Section */}
       <div>
         <ToggleClose open={open} setOpen={setOpen} />
@@ -152,8 +179,8 @@ const Option = ({ Icon, title, selected, setSelected, open, notifs }) => {
       onClick={() => setSelected(title)}
       className={`relative flex h-10 w-full items-center rounded-md transition-colors ${
         selected === title
-          ? "bg-indigo-100 text-indigo-800"
-          : "text-slate-500 hover:bg-slate-100"
+          ? "bg-primary text-primary-foreground"
+          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
       }`}
     >
       <motion.div
@@ -183,7 +210,7 @@ const Option = ({ Icon, title, selected, setSelected, open, notifs }) => {
           }}
           style={{ y: "-50%" }}
           transition={{ delay: 0.5 }}
-          className="absolute right-2 top-1/2 size-4 rounded bg-indigo-500 text-xs text-white"
+          className="absolute right-2 top-1/2 size-4 rounded bg-primary text-xs text-primary-foreground"
         >
           {notifs}
         </motion.span>
@@ -192,30 +219,43 @@ const Option = ({ Icon, title, selected, setSelected, open, notifs }) => {
   );
 };
 
-const TitleSection = ({ open, user }) => {
+const TitleSection = ({ open, user, onSettingsClick }) => {
   return (
-    <div className="mb-3 border-b border-slate-300 pb-3">
-      <div className="flex cursor-pointer items-center justify-between rounded-md transition-colors hover:bg-slate-100">
+    <div className="mb-3 border-b border-border pb-3">
+      <div className="flex cursor-pointer items-center justify-between rounded-md transition-colors hover:bg-accent hover:text-accent-foreground p-2">
         <div className="flex items-center gap-2">
           <Logo />
           {open && (
             <motion.div
-              layout
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.125 }}
+              className="flex flex-col"
             >
-              <span className="block text-xs font-semibold text-black">
-                {user ? user.name : "Nome do Usuário"}
+              <span className="text-xs font-bold text-foreground">
+                PharmService
               </span>
-              <span className="block text-xs text-slate-500">
-                {" "}
-                {user ? user.roles : "Função do Usuário"}
+              <span className="text-xs text-muted-foreground">
+                {user?.name || "Usuário"}
               </span>
             </motion.div>
           )}
         </div>
-        {open && <FiChevronDown className="mr-2" />}
+        {open && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.2 }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSettingsClick();
+            }}
+            className="p-1 rounded-md hover:bg-accent/50 transition-colors"
+            title="Configurações"
+          >
+            <FiSettings className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+          </motion.button>
+        )}
       </div>
     </div>
   );
@@ -223,18 +263,9 @@ const TitleSection = ({ open, user }) => {
 
 const Logo = () => {
   return (
-    <motion.div
-      layout
-      className="grid size-10 shrink-0 place-content-center rounded-md "
-    >
-      <Image
-        src="/images/pharm/pharm.png"
-        width={170}
-        height={260}
-        alt="Logo"
-        className="fill-slate-50"
-      />
-    </motion.div>
+    <div className="grid h-10 w-10 place-content-center rounded-lg bg-primary text-primary-foreground">
+      <span className="text-lg font-bold">P</span>
+    </div>
   );
 };
 
@@ -243,10 +274,13 @@ const Logout = ({ open, logout }) => {
     <motion.button
       layout
       onClick={logout}
-      className="flex items-center w-full p-3 text-slate-500 hover:bg-red-100 hover:text-red-600"
+      className="flex h-10 w-full items-center rounded-md transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground"
     >
-      <motion.div layout className=" place-content-center text-lg">
-        <FiLogOut className="mr-2 text-lg" />
+      <motion.div
+        layout
+        className="grid h-full w-10 place-content-center text-lg"
+      >
+        <FiLogOut />
       </motion.div>
       {open && (
         <motion.span
@@ -254,7 +288,7 @@ const Logout = ({ open, logout }) => {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.125 }}
-          className="text-sm "
+          className="text-xs font-medium"
         >
           Sair
         </motion.span>
@@ -267,30 +301,28 @@ const ToggleClose = ({ open, setOpen }) => {
   return (
     <motion.button
       layout
-      onClick={() => setOpen((pv) => !pv)}
-      className="absolute bottom-0 left-0 right-0 border-t border-slate-300 transition-colors hover:bg-slate-100"
+      onClick={() => setOpen(!open)}
+      className="flex h-10 w-full items-center rounded-md transition-colors text-muted-foreground hover:bg-accent hover:text-accent-foreground"
     >
-      <div className="flex items-center p-2">
-        <motion.div
+      <motion.div
+        layout
+        className="grid h-full w-10 place-content-center text-lg"
+      >
+        <FiChevronsRight
+          className={`transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </motion.div>
+      {open && (
+        <motion.span
           layout
-          className="grid size-10 place-content-center text-lg"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.125 }}
+          className="text-xs font-medium"
         >
-          <FiChevronsRight
-            className={`transition-transform ${open && "rotate-180"} bg-black`}
-          />
-        </motion.div>
-        {open && (
-          <motion.span
-            layout
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.125 }}
-            className="ml-2 text-sm font-medium text-black"
-          >
-            Esconder
-          </motion.span>
-        )}
-      </div>
+          Fechar
+        </motion.span>
+      )}
     </motion.button>
   );
 };

@@ -1,27 +1,28 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, lazy, Suspense } from "react";
-import { ClipLoader } from "react-spinners";
+import React, { useState, useEffect, useCallback, Suspense } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import Cookies from "js-cookie";
-import Sidebar from "@components/dashboard/Sidebar";
-import TableContent from "@components/dashboard/TableContent";
-import Reservation from "@components/dashboard/Reservation";
-import ExportReports from "@components/dashboard/ExportReports";
-import EmployeeManagement from "@components/dashboard/EmployeeManagement";
-import PharmService from "@components/services/PharmService";
-import PharmacyManagement from "@components/pharmacy/PharmacyManagement";
+import { getSessionData } from "@/hooks/useSessionStorage";
+import PharmService from "@/components/services/PharmService";
+import Sidebar from "@/components/layout/Sidebar";
+import TableContent from "@/components/dashboard/TableContent";
+import Reservation from "@/components/dashboard/Reservation";
+import EmployeeManagement from "@/components/dashboard/EmployeeManagement";
+import ExportReports from "@/components/dashboard/ExportReports";
+import PharmacyManagement from "@/components/pharmacy/PharmacyManagement";
+import { ClipLoader } from "react-spinners";
 
-const Loader = () => (
-  <div className="flex items-center justify-center h-screen bg-blue-100 dark:bg-slate-950">
-    <ClipLoader color="#4F46E5" size={50} />
+// Componente de carregamento global
+const GlobalLoader = () => (
+  <div className="flex justify-center items-center h-screen bg-background">
+    <ClipLoader color="hsl(var(--primary))" size={40} />
   </div>
 );
 
 // Adicione um fallback de carregamento
 const LoadingFallback = () => (
   <div className="flex justify-center items-center h-32">
-    <span className="loading loading-ring loading-lg text-primary"></span>
+    <ClipLoader color="hsl(var(--primary))" size={40} />
   </div>
 );
 
@@ -35,8 +36,10 @@ const CONTENT_MAP = {
 
 export const Dashboard = () => {
   const { user } = useAuth();
-  const roles = Cookies.get("roles");
-  const pharmacyId = Cookies.get("pharmacyId");
+
+  const sessionData = getSessionData("user", {});
+  const roles = user?.roles || sessionData.roles;
+  const pharmacyId = user?.pharmacyId || sessionData.pharmacyId;
 
   const [userAlerts, setUserAlerts] = useState([]);
   const [isPageLoading, setIsPageLoading] = useState(true);
@@ -103,11 +106,11 @@ export const Dashboard = () => {
   }, [currentContent, roles, pharmacyId, refreshAlerts]);
 
   if (isPageLoading || !user) {
-    return <Loader className="bg-blue-100 dark:bg-slate-950" />;
+    return <GlobalLoader />;
   }
 
   return (
-    <div className="flex bg-indigo-50">
+    <div className="flex bg-background">
       <Sidebar
         setSelectedContent={handleContentChange}
         user={user}
@@ -118,8 +121,8 @@ export const Dashboard = () => {
 
       <main className="flex-1">
         {isContentLoading ? (
-          <div className="flex items-center justify-center h-full bg-blue-100 dark:bg-slate-950">
-            <ClipLoader color="#4F46E5" size={40} />
+          <div className="flex items-center justify-center h-full bg-background">
+            <ClipLoader color="hsl(var(--primary))" size={40} />
           </div>
         ) : (
           renderContent()

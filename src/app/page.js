@@ -7,11 +7,11 @@ import Feature from "@components/home/Feature";
 
 export default function Home() {
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-background">
       <main className="font-roboto font-normal">
         <First />
         <Feature />
-        <HomePage className="bg-blue-700" />
+        <HomePage />
       </main>
     </div>
   );

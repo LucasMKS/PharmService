@@ -1,5 +1,5 @@
 import axios from "axios";
-import Cookies from "js-cookie";
+import { getSessionData } from "@/hooks/useSessionStorage";
 
 const API_BASE_URL = "http://localhost:8080/api";
 //const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -14,8 +14,13 @@ const axiosInstance = axios.create({
 // Interceptor para adicionar o token a todas as requisições
 axiosInstance.interceptors.request.use(
   (config) => {
-    const token = Cookies.get("token");
-    if (token && !config.url.includes("/auth/")) {
+    const token = localStorage.getItem("token");
+    if (
+      token &&
+      !config.url.includes("/auth/login") &&
+      !config.url.includes("/auth/register") &&
+      !config.url.includes("/auth/refresh-token")
+    ) {
       config.headers["Authorization"] = `Bearer ${token}`;
     }
     return config;
@@ -23,26 +28,91 @@ axiosInstance.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// Interceptor para tratar erros 401 e tentar renovar o token
+axiosInstance.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      try {
+        // Tentar renovar o token
+        const refreshToken = localStorage.getItem("refreshToken");
+        if (refreshToken) {
+          const response = await axios.post(
+            `${API_BASE_URL}/auth/refresh-token`,
+            {
+              refreshToken: refreshToken,
+            }
+          );
+
+          // Atualizar tokens
+          if (response.data.token) {
+            localStorage.setItem("token", response.data.token);
+            originalRequest.headers[
+              "Authorization"
+            ] = `Bearer ${response.data.token}`;
+
+            // Tentar a requisição original novamente
+            return axiosInstance(originalRequest);
+          }
+        }
+      } catch (refreshError) {
+        // Se falhar ao renovar, limpar dados e redirecionar para login
+        localStorage.removeItem("token");
+        localStorage.removeItem("refreshToken");
+        sessionStorage.removeItem("user");
+        window.location.href = "/auth";
+        return Promise.reject(refreshError);
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+// Função helper para obter dados do usuário do sessionStorage
+const getUserData = () => {
+  return getSessionData("user", null);
+};
+
 const PharmService = {
   // Método para fazer login
   login: async (credentials) => {
     try {
       const response = await axiosInstance.post("/auth/login", credentials);
-      // Salvar token e informações do usuário nos cookies
-      Cookies.set("token", response.data.token);
-      Cookies.set("name", response.data.name);
-      Cookies.set("roles", response.data.roles);
-      Cookies.set("userId", response.data.userId);
-      if (
-        response.data.roles.includes("FARMACIA") ||
-        response.data.roles.includes("GERENTE")
-      ) {
-        Cookies.set("pharmacyId", response.data.idPharmacy);
-        Cookies.set("pharmacyName", response.data.pharmacyName);
-      }
       return response.data;
     } catch (error) {
       console.error("Erro ao fazer login:", error);
+      throw error;
+    }
+  },
+
+  // Método para renovar token
+  refreshToken: async () => {
+    try {
+      const refreshToken = localStorage.getItem("refreshToken");
+      if (!refreshToken) {
+        throw new Error("Refresh token não encontrado");
+      }
+
+      const response = await axios.post(`${API_BASE_URL}/auth/refresh-token`, {
+        refreshToken: refreshToken,
+      });
+
+      // Atualizar tokens no localStorage
+      if (response.data.token) {
+        localStorage.setItem("token", response.data.token);
+      }
+      if (response.data.refreshToken) {
+        localStorage.setItem("refreshToken", response.data.refreshToken);
+      }
+
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao renovar token:", error);
       throw error;
     }
   },
@@ -96,17 +166,21 @@ const PharmService = {
   // Método para adicionar um novo medicamento
   addMedicine: async (medicineData) => {
     try {
-      const userId = Cookies.get("userId");
-      const userRole = Cookies.get("roles");
+      const userData = getUserData();
+      if (!userData) {
+        throw new Error("Usuário não autenticado");
+      }
 
-      console.log(userId, userRole);
+      console.log(userData.userId, userData.roles);
       const response = await axiosInstance.post(
         "/medicineFarm/create",
         medicineData,
         {
           headers: {
-            UserId: userId,
-            Role: userRole,
+            UserId: userData.userId,
+            Role: Array.isArray(userData.roles)
+              ? userData.roles[0]
+              : userData.roles,
           },
         }
       );
@@ -125,16 +199,20 @@ const PharmService = {
   // Método para atualizar um medicamento
   updateMedicine: async (id, medicineData) => {
     try {
-      const userId = Cookies.get("userId");
-      const userRole = Cookies.get("roles");
+      const userData = getUserData();
+      if (!userData) {
+        throw new Error("Usuário não autenticado");
+      }
 
       const response = await axiosInstance.put(
         `/medicineFarm/update/${id}`,
         medicineData,
         {
           headers: {
-            UserId: userId,
-            Role: userRole,
+            UserId: userData.userId,
+            Role: Array.isArray(userData.roles)
+              ? userData.roles[0]
+              : userData.roles,
           },
         }
       );
@@ -148,15 +226,19 @@ const PharmService = {
   // Método para deletar um medicamento
   deleteMedicine: async (id) => {
     try {
-      const userId = Cookies.get("userId");
-      const userRole = Cookies.get("roles");
+      const userData = getUserData();
+      if (!userData) {
+        throw new Error("Usuário não autenticado");
+      }
 
       const response = await axiosInstance.delete(
         `/medicineFarm/delete/${id}`,
         {
           headers: {
-            UserId: userId,
-            Role: userRole,
+            UserId: userData.userId,
+            Role: Array.isArray(userData.roles)
+              ? userData.roles[0]
+              : userData.roles,
           },
         }
       );
@@ -182,7 +264,16 @@ const PharmService = {
 
   createReservation: async (formData) => {
     try {
-      const userRole = Cookies.get("roles");
+      const userData = getUserData();
+      if (!userData) {
+        throw new Error("Usuário não autenticado");
+      }
+
+      console.log("Dados do usuário para reserva:", userData);
+      console.log("FormData contents:");
+      for (let [key, value] of formData.entries()) {
+        console.log(key, value);
+      }
 
       const response = await axiosInstance.post(
         "/reservations/create",
@@ -190,13 +281,25 @@ const PharmService = {
         {
           headers: {
             "Content-Type": "multipart/form-data",
-            Role: userRole,
+            Role: Array.isArray(userData.roles)
+              ? userData.roles[0]
+              : userData.roles,
           },
         }
       );
       return response.data;
     } catch (error) {
       console.error("Erro ao criar reserva:", error);
+      console.error("Response data:", error.response?.data);
+      console.error("Response status:", error.response?.status);
+
+      // Tratar erro específico de reserva duplicada
+      if (error.response?.data?.includes("já possui uma reserva pendente")) {
+        throw new Error(
+          "Você já possui uma reserva pendente para este medicamento"
+        );
+      }
+
       throw new Error(`Failed to create reservation. ${error.message}`);
     }
   },
@@ -204,11 +307,7 @@ const PharmService = {
   // PharmService.js
   getReservationsByUser: async () => {
     try {
-      const response = await axiosInstance.get(`/reservations/user`, {
-        headers: {
-          Authorization: `Bearer ${Cookies.get("token")}`,
-        },
-      });
+      const response = await axiosInstance.get(`/reservations/user`);
       return response.data;
     } catch (error) {
       console.error("Erro ao buscar reservas:", error);
@@ -218,11 +317,7 @@ const PharmService = {
 
   getAllReservations: async () => {
     try {
-      const response = await axiosInstance.get("/reservations/list", {
-        headers: {
-          Authorization: `Bearer ${Cookies.get("token")}`,
-        },
-      });
+      const response = await axiosInstance.get("/reservations/list");
       return response.data;
     } catch (error) {
       console.error("Erro ao buscar reservas:", error);
@@ -230,10 +325,42 @@ const PharmService = {
     }
   },
 
+  // Método para atualizar status da reserva
+  updateReservationStatus: async (reservationId, newStatus) => {
+    try {
+      const userData = getUserData();
+      if (!userData) {
+        throw new Error("Usuário não autenticado");
+      }
+
+      await axiosInstance.post("/reservations/manage", null, {
+        params: {
+          reservationId,
+          status: newStatus,
+          message:
+            newStatus === "cancelado"
+              ? "Cancelado pelo administrador"
+              : "Aprovado pelo administrador",
+        },
+        headers: {
+          Role: Array.isArray(userData.roles)
+            ? userData.roles[0]
+            : userData.roles,
+          UserId: userData.userId,
+        },
+      });
+    } catch (error) {
+      console.error("Erro ao atualizar status da reserva:", error);
+      throw error;
+    }
+  },
+
   manageReservation: async (reservationId, status, message) => {
     try {
-      const userId = Cookies.get("userId");
-      const userRole = Cookies.get("roles");
+      const userData = getUserData();
+      if (!userData) {
+        throw new Error("Usuário não autenticado");
+      }
 
       await axiosInstance.post("/reservations/manage", null, {
         params: {
@@ -242,9 +369,10 @@ const PharmService = {
           message,
         },
         headers: {
-          Authorization: `Bearer ${Cookies.get("token")}`,
-          Role: userRole,
-          UserId: userId,
+          Role: Array.isArray(userData.roles)
+            ? userData.roles[0]
+            : userData.roles,
+          UserId: userData.userId,
         },
       });
     } catch (error) {
@@ -267,11 +395,7 @@ const PharmService = {
 
   getActiveAlerts: async () => {
     try {
-      const response = await axiosInstance.get("/medicines/alert", {
-        headers: {
-          Authorization: `Bearer ${Cookies.get("token")}`,
-        },
-      });
+      const response = await axiosInstance.get("/medicines/alert");
       return response.data;
     } catch (error) {
       console.error("Erro ao buscar alertas:", error);
@@ -281,11 +405,7 @@ const PharmService = {
 
   deleteAlert: async (alertId) => {
     try {
-      await axiosInstance.delete(`/medicines/alert/${alertId}`, {
-        headers: {
-          Authorization: `Bearer ${Cookies.get("token")}`,
-        },
-      });
+      await axiosInstance.delete(`/medicines/alert/${alertId}`);
     } catch (error) {
       console.error("Erro ao deletar alerta:", error);
       throw error;
@@ -390,8 +510,10 @@ const PharmService = {
   // Adicione este método
   importMedicines: async (formData, pharmacyId) => {
     try {
-      const userId = Cookies.get("userId");
-      const userRole = Cookies.get("roles");
+      const userData = getUserData();
+      if (!userData) {
+        throw new Error("Usuário não autenticado");
+      }
 
       const response = await axiosInstance.post(
         `/medicine/import-medicines/${pharmacyId}`,
@@ -399,8 +521,8 @@ const PharmService = {
         {
           headers: {
             "Content-Type": "multipart/form-data",
-            UserId: userId,
-            UserRole: userRole,
+            UserId: userData.userId,
+            UserRole: userData.roles,
           },
         }
       );
@@ -415,38 +537,14 @@ const PharmService = {
 
   exportReport: async (params) => {
     try {
-      const response = await axiosInstance.get("/reports/export", {
-        params,
-      });
-
-      // Extrair URL do PDF da resposta
-      const pdfUrl = response.data.download_url;
-
-      // Validar URL
-      if (!isValidUrl(pdfUrl)) {
-        throw new Error("URL do relatório inválida");
-      }
-
-      // Abrir em nova aba
-      const newWindow = window.open(pdfUrl, "_blank", "noopener,noreferrer");
-
-      if (
-        !newWindow ||
-        newWindow.closed ||
-        typeof newWindow.closed === "undefined"
-      ) {
-        throw new Error(
-          "O navegador bloqueou a abertura da janela. Por favor permita pop-ups para este site."
-        );
-      }
+      const response = await axiosInstance.post("/reports/export", params);
+      return response.data;
     } catch (error) {
       console.error("Erro ao exportar relatório:", error);
       let message = error.message;
-
       if (error.response) {
-        message = error.response.data || message;
+        message = error.response.data?.message || message;
       }
-
       throw new Error(message);
     }
   },
@@ -507,15 +605,68 @@ const PharmService = {
       throw error;
     }
   },
-};
-// Função auxiliar para validar URLs
-const isValidUrl = (urlString) => {
-  try {
-    new URL(urlString);
-    return true;
-  } catch {
-    return false;
-  }
+
+  // Método para atualizar dados do usuário
+  updateUser: async (userId, userData) => {
+    try {
+      const response = await axiosInstance.put(
+        `/auth/update-user/${userId}`,
+        userData
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao atualizar usuário:", error);
+      throw error;
+    }
+  },
+
+  // Método para solicitar troca de senha
+  requestPasswordChange: async (userId, passwordData) => {
+    try {
+      const response = await axiosInstance.post(
+        `/auth/request-password-change/${userId}`,
+        passwordData
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao solicitar troca de senha:", error);
+      throw error;
+    }
+  },
+
+  // Método para confirmar troca de senha
+  confirmPasswordChange: async (token, newPassword) => {
+    try {
+      const formData = new URLSearchParams();
+      formData.append("newPassword", newPassword);
+      formData.append("token", token);
+
+      const response = await axiosInstance.post(
+        "/auth/confirm-password-change",
+        formData,
+        {
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao confirmar troca de senha:", error);
+      throw error;
+    }
+  },
+
+  // Método para buscar usuário por ID
+  getUserById: async (userId) => {
+    try {
+      const response = await axiosInstance.get(`/auth/user/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao buscar usuário:", error);
+      throw error;
+    }
+  },
 };
 
 export default PharmService;

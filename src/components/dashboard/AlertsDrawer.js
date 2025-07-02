@@ -21,19 +21,19 @@ const AlertsDrawer = ({ isOpen, onClose, alerts, onDeleteAlert }) => {
           className="drawer-overlay"
           onClick={onClose}
         ></label>
-        <div className="menu p-6 w-96 min-h-full bg-base-100 dark:bg-neutral-800 text-base-content dark:text-gray-300">
+        <div className="menu p-6 w-96 min-h-full bg-card text-card-foreground border-l border-border">
           {/* Header */}
-          <div className="flex items-center justify-between mb-6 pb-4 border-b dark:border-neutral-700">
+          <div className="flex items-center justify-between mb-6 pb-4 border-b border-border">
             <div className="flex items-center gap-2">
-              <FiAlertCircle className="text-2xl text-primary dark:text-purple-400" />
+              <FiAlertCircle className="text-2xl text-primary" />
               <h2 className="text-xl font-bold">Meus Alertas</h2>
-              <span className="badge badge-primary dark:badge-accent ml-2">
+              <span className="inline-flex items-center rounded-full bg-primary px-2.5 py-0.5 text-xs font-medium text-primary-foreground ml-2">
                 {alerts.length}
               </span>
             </div>
             <button
               onClick={onClose}
-              className="btn btn-circle btn-sm btn-ghost"
+              className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-8 w-8"
             >
               <FiX className="text-lg" />
             </button>
@@ -43,63 +43,39 @@ const AlertsDrawer = ({ isOpen, onClose, alerts, onDeleteAlert }) => {
           <div className="space-y-4">
             {alerts.length === 0 ? (
               <div className="text-center py-8">
-                <FiPackage className="text-4xl text-gray-400 dark:text-neutral-600 mx-auto mb-4" />
-                <p className="text-gray-500 dark:text-neutral-500">
-                  Nenhum alerta ativo no momento
-                </p>
+                <FiPackage className="text-4xl text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">Nenhum alerta ativo</p>
               </div>
             ) : (
               alerts.map((alert) => (
                 <div
                   key={alert.id}
-                  className="card bg-base-200 dark:bg-neutral-700 shadow-sm hover:shadow-md transition-shadow"
+                  className="p-4 border border-border rounded-lg bg-background"
                 >
-                  <div className="card-body p-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <FiPackage className="text-lg text-secondary dark:text-purple-300" />
-                          <h3 className="card-title text-lg font-semibold">
-                            {alert.stock.medicineName}
-                          </h3>
-                        </div>
-
-                        <div className="space-y-1 text-sm">
-                          <p className="flex items-center gap-2">
-                            <span className="font-medium">Farmácia:</span>
-                            <span className="text-gray-500 dark:text-neutral-400">
-                              {alert.stock.pharmacy.name}
-                            </span>
-                          </p>
-                          <p className="flex items-center gap-2">
-                            <span className="font-medium">Telefone:</span>
-                            <span className="text-gray-500 dark:text-neutral-400">
-                              {alert.stock.pharmacy.phone}
-                            </span>
-                          </p>
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() => onDeleteAlert(alert.id)}
-                        className="btn btn-sm btn-ghost text-error hover:text-error-focus dark:text-red-400 dark:hover:text-red-300"
-                        title="Remover Alerta"
-                      >
-                        <FiTrash2 className="text-lg" />
-                      </button>
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h3 className="font-medium text-foreground">
+                        {alert.medicine?.medicineName || "Medicamento"}
+                      </h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Farmácia: {alert.medicine?.pharmacy?.name || "N/A"}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Criado em:{" "}
+                        {new Date(alert.createdAt).toLocaleDateString("pt-BR")}
+                      </p>
                     </div>
+                    <button
+                      onClick={() => onDeleteAlert(alert.id)}
+                      className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-8 w-8 ml-2"
+                      title="Remover alerta"
+                    >
+                      <FiTrash2 className="text-sm text-destructive" />
+                    </button>
                   </div>
                 </div>
               ))
             )}
-          </div>
-
-          {/* Footer */}
-          <div className="mt-6 pt-4 border-t dark:border-neutral-700">
-            <p className="text-sm text-gray-500 dark:text-neutral-500">
-              Você será notificado por e-mail quando o medicamento estiver
-              disponível
-            </p>
           </div>
         </div>
       </div>

@@ -1,16 +1,11 @@
 "use client";
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useForm } from "react-hook-form";
-import Cookies from "js-cookie";
-import PharmService from "../services/PharmService";
-import PharmacyModal from "../table/PharmacyModal";
-import AddMedication from "./AddMedication";
-import MedicineModal from "../table/MedicineModal";
-import NProgress from "nprogress";
 
-import ReservationModal from "../table/ReservationModal";
-import EditMedicationModal from "../table/EditMedicationModal";
-import ImportMedicinesModal from "./ImportMedicinesModal";
+import PharmService from "../services/PharmService";
+
+import AddMedication from "../modals/AddMedication";
+import NProgress from "nprogress";
 
 import { FiSearch, FiPlus, FiUploadCloud } from "react-icons/fi";
 
@@ -22,6 +17,30 @@ import {
   getSortedRowModel,
   flexRender,
 } from "@tanstack/react-table";
+
+// IMPORTAR COMPONENTES DO SHADCN UI
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+import PharmacyDetailsCard from "../cards/PharmacyDetailsCard";
+import MedicineDetailsCard from "../cards/MedicineDetailsCard";
+import ReservationModalContent from "../modals/ReservationModalContent";
+import EditMedicationModal from "../modals/EditMedicationModal";
+import ImportMedicinesModalContent from "../modals/ImportMedicinesModalContent";
 
 // Configuração do NProgress
 NProgress.configure({
@@ -41,20 +60,27 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
   const [globalFilter, setGlobalFilter] = useState("");
   const [sorting, setSorting] = useState([]);
   const [pagination, setPagination] = useState({
-    pageIndex: 0, // Corresponde a currentPage - 1
-    pageSize: 10, // Corresponde a itemsPerPage
+    pageIndex: 0,
+    pageSize: 10,
   });
 
-  const [selectedPharmacy, setSelectedPharmacy] = useState(null);
-  const [selectedMedicine, setSelectedMedicine] = useState(null);
-  const [selectedMedicineName, setSelectedMedicineName] = useState(null); // Para o MedicineModal
-  const [
-    selectedMedicationForReservation,
-    setSelectedMedicationForReservation,
-  ] = useState(null); // Para ReservationModal
-  const [reservationModalOpen, setReservationModalOpen] = useState(false);
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [showImportModal, setShowImportModal] = useState(false);
+  // NOVO ESTADO para controlar o modal Shadcn
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalContent, setModalContent] = useState(null);
+  const [modalTitle, setModalTitle] = useState("");
+  const [modalDescription, setModalDescription] = useState("");
+  const [modalSize, setModalSize] = useState("");
+  const [reservationLoading, setReservationLoading] = useState(false);
+
+  // Estados para os dados dos modais específicos
+  // (Mantidos, pois podem ser úteis para re-renderizações ou para passar data downstream)
+  const [currentPharmacy, setCurrentPharmacy] = useState(null);
+  const [currentMedicineDetails, setCurrentMedicineDetails] = useState(null);
+  const [currentMedicationForReservation, setCurrentMedicationForReservation] =
+    useState(null);
+  const [currentMedicationForEdit, setCurrentMedicationForEdit] =
+    useState(null);
+  const [pendingReservations, setPendingReservations] = useState(new Set());
 
   const {
     register,
@@ -73,92 +99,32 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
     }, 8000);
   }, []);
 
-  // FUNÇÕES DE MANUSEIO DOS BOTÕES DA TABELA - MOVA ESTAS PARA CÁ
-  const handleReservationSuccess = useCallback(
-    (medicineId) => {
-      setMedications((prev) =>
-        prev.map((med) =>
-          med.medicineId === medicineId
-            ? { ...med, quantity: med.quantity - 1 }
-            : med
-        )
-      );
-      showToast("Reserva realizada com sucesso!");
-    },
-    [showToast]
-  );
+  // --- Funções de Manuseio dos Modais (Chamadas e Conteúdo) ---
 
-  const handleReserve = useCallback(
-    // Certifique-se que esta e as demais estejam com useCallback
-    (medication) => {
-      if (medication?.medicineId) {
-        setSelectedMedicationForReservation(medication);
-        setReservationModalOpen(true);
-      } else {
-        showToast("Erro: Medicamento não selecionado corretamente", "error");
-      }
-    },
-    [showToast]
-  );
+  const openModal = useCallback((title, description, content, size = "") => {
+    setModalTitle(title);
+    setModalDescription(description);
+    setModalContent(content);
+    setModalSize(size);
+    setIsModalOpen(true);
+  }, []);
 
-  const handleEdit = useCallback(
-    (medicine) => {
-      reset({
-        medicineName: medicine.medicineName,
-        quantity: medicine.quantity,
-        idPharmacy: medicine.pharmacy.id,
-        category: medicine.category,
-        dosageForm: medicine.dosageForm,
-        classification: medicine.classification,
-        requiresPrescription: medicine.requiresPrescription,
-      });
-      setSelectedMedicine(medicine);
-      setEditModalOpen(true);
-    },
-    [reset]
-  );
+  const closeModal = useCallback(() => {
+    setIsModalOpen(false);
+    setModalTitle("");
+    setModalDescription("");
+    setModalContent(null);
+    setModalSize("");
+    // Resetar estados específicos de cada modal se necessário para evitar vazamento de dados
+    setCurrentPharmacy(null);
+    setCurrentMedicineDetails(null);
+    setCurrentMedicationForReservation(null);
+    setCurrentMedicationForEdit(null);
+    setReservationLoading(false); // Resetar o estado de loading da reserva
+    reset(); // Resetar o formulário de edição, se houver
+  }, [reset]);
 
-  const handleDelete = useCallback(
-    async (medicineId) => {
-      if (window.confirm("Confirmar exclusão?")) {
-        try {
-          NProgress.start();
-          await PharmService.deleteMedicine(medicineId);
-          setMedications((prev) =>
-            prev.filter((med) => med.medicineId !== medicineId)
-          );
-          showToast("Medicamento excluído com sucesso!");
-        } catch (error) {
-          showToast("Erro ao excluir medicamento", "error");
-        } finally {
-          NProgress.done();
-        }
-      }
-    },
-    [showToast]
-  );
-
-  const handleAlert = useCallback(
-    async (medication) => {
-      try {
-        NProgress.start();
-        const userId = Cookies.get("userId");
-        if (!userId) throw new Error("Usuário não autorizado");
-
-        await PharmService.createAlert(userId, medication.medicineId);
-        refreshAlerts();
-        showToast("Alerta criado com sucesso!");
-      } catch (error) {
-        const errorMsg = error.response?.data?.error || "Falha ao criar alerta";
-        showToast(`Erro: ${errorMsg}`, "error");
-      } finally {
-        NProgress.done();
-      }
-    },
-    [refreshAlerts, showToast]
-  );
-
-  // Busca de medicamentos
+  // Busca de medicamentos (DEVE VIR ANTES DAS FUNÇÕES QUE A CHAMAM)
   const fetchMedications = useCallback(async () => {
     try {
       setError(null);
@@ -188,10 +154,250 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
     }
   }, [roles, pharmacyId, showToast]);
 
+  // Buscar reservas pendentes do usuário (apenas para clientes)
+  const fetchPendingReservations = useCallback(async () => {
+    if (Array.isArray(roles) && roles.includes("CLIENTE")) {
+      try {
+        const userReservations = await PharmService.getReservationsByUser();
+        const pendingStockIds = userReservations
+          .filter(
+            (reservation) =>
+              reservation.status === "pendente" &&
+              reservation.medicine &&
+              reservation.medicine.medicineId
+          )
+          .map((reservation) => reservation.medicine.medicineId);
+        setPendingReservations(new Set(pendingStockIds));
+      } catch (error) {
+        console.error("Erro ao buscar reservas pendentes:", error);
+      }
+    }
+  }, [roles]);
+
+  const handlePharmacyClick = useCallback(
+    (pharmacy) => {
+      setCurrentPharmacy(pharmacy);
+      const content = <PharmacyDetailsCard pharmacy={pharmacy} />;
+      openModal(
+        `Detalhes da Farmácia: ${pharmacy.name}`,
+        "Informações de contato e localização da farmácia.",
+        content
+      );
+    },
+    [openModal]
+  );
+
+  const handleMedicineDetailsClick = useCallback(
+    (medicine) => {
+      setCurrentMedicineDetails(medicine);
+      const content = <MedicineDetailsCard medicine={medicine} />;
+      openModal(
+        `Detalhes do Medicamento: ${medicine.medicineName}`,
+        "Informações detalhadas sobre o medicamento.",
+        content
+      );
+    },
+    [openModal]
+  );
+
+  // FUNÇÕES DE MANUSEIO DOS BOTÕES DA TABELA
+  const handleReserve = useCallback(
+    (medication) => {
+      setCurrentMedicationForReservation(medication);
+      const content = (
+        <ReservationModalContent
+          medicineName={medication?.medicineName}
+          requiresPrescription={medication?.requiresPrescription}
+          onConfirm={async (file) => {
+            try {
+              setReservationLoading(true);
+
+              // Validar se prescrição é obrigatória mas não foi fornecida
+              if (medication?.requiresPrescription && !file) {
+                showToast(
+                  "Prescrição médica é obrigatória para este medicamento",
+                  "error"
+                );
+                setReservationLoading(false);
+                return;
+              }
+
+              // Criar FormData para enviar ao backend
+              const formData = new FormData();
+              const userData =
+                typeof window !== "undefined"
+                  ? JSON.parse(sessionStorage.getItem("user") || "{}")
+                  : {};
+
+              formData.append("userId", userData.userId);
+              formData.append("stockId", medication.medicineId);
+
+              // Adicionar prescrição se fornecida
+              if (file) {
+                formData.append("prescription", file);
+              }
+
+              // Chamar o serviço de reserva
+              await PharmService.createReservation(formData);
+
+              // Sucesso
+              showToast("Reserva realizada com sucesso!");
+
+              // Atualizar a lista de medicamentos (diminuir quantidade)
+              setMedications((prev) =>
+                prev.map((med) =>
+                  med.medicineId === medication.medicineId
+                    ? { ...med, quantity: Math.max(0, med.quantity - 1) }
+                    : med
+                )
+              );
+
+              // Adicionar à lista de reservas pendentes
+              setPendingReservations(
+                (prev) => new Set([...prev, medication.medicineId])
+              );
+
+              // Fechar modal apenas após sucesso
+              closeModal();
+            } catch (error) {
+              console.error("Erro ao criar reserva:", error);
+              const errorMessage =
+                error.response?.data?.error ||
+                error.message ||
+                "Erro ao criar reserva";
+              showToast(errorMessage, "error");
+            } finally {
+              setReservationLoading(false);
+            }
+          }}
+          onCancel={closeModal}
+          loading={reservationLoading}
+          showToast={showToast}
+        />
+      );
+      openModal(
+        `Reservar ${medication.medicineName}`,
+        "Preencha os detalhes para reservar este medicamento.",
+        content
+      );
+    },
+    [openModal, showToast, closeModal, reservationLoading]
+  );
+
+  const handleEdit = useCallback(
+    (medicine) => {
+      setCurrentMedicationForEdit(medicine);
+      const content = (
+        <EditMedicationModal
+          isOpen={true}
+          selectedMedicine={medicine}
+          onClose={closeModal}
+          onSave={() => {
+            fetchMedications();
+            closeModal();
+          }}
+          showToast={showToast}
+        />
+      );
+      openModal(
+        `Editar Medicamento: ${medicine.medicineName}`,
+        "Atualize as informações deste medicamento.",
+        content
+      );
+    },
+    [openModal, closeModal, fetchMedications, showToast]
+  );
+
+  const handleDelete = useCallback(
+    async (medicineId) => {
+      if (window.confirm("Confirmar exclusão?")) {
+        try {
+          NProgress.start();
+          await PharmService.deleteMedicine(medicineId);
+          setMedications((prev) =>
+            prev.filter((med) => med.medicineId !== medicineId)
+          );
+          showToast("Medicamento excluído com sucesso!");
+        } catch (error) {
+          showToast("Erro ao excluir medicamento", "error");
+        } finally {
+          NProgress.done();
+        }
+      }
+    },
+    [showToast]
+  );
+
+  const handleAlert = useCallback(
+    async (medication) => {
+      try {
+        NProgress.start();
+        const userData =
+          typeof window !== "undefined"
+            ? JSON.parse(sessionStorage.getItem("user") || "{}")
+            : {};
+        if (!userData.userId) throw new Error("Usuário não autorizado");
+
+        await PharmService.createAlert(userData.userId, medication.medicineId);
+        refreshAlerts();
+        showToast("Alerta criado com sucesso!");
+      } catch (error) {
+        const errorMsg = error.response?.data?.error || "Falha ao criar alerta";
+        showToast(`Erro: ${errorMsg}`, "error");
+      } finally {
+        NProgress.done();
+      }
+    },
+    [refreshAlerts, showToast]
+  );
+
+  const onAddClick = useCallback(() => {
+    // AGORA USAMOS AddMedication COMO CONTEÚDO
+    const content = (
+      <AddMedication
+        pharmacyId={pharmacyId}
+        onMedicationAdded={() => {
+          fetchMedications();
+          closeModal(); // Fechar o modal após adicionar
+        }}
+        roles={roles}
+        showToast={showToast}
+        onCancel={closeModal}
+      />
+    );
+    openModal(
+      "Adicionar Novo Medicamento",
+      "Preencha os campos para adicionar um novo medicamento.",
+      content,
+      "lg"
+    ); // Defina um tamanho se quiser
+  }, [openModal, pharmacyId, roles, showToast, fetchMedications, closeModal]);
+
+  const onImportClick = useCallback(() => {
+    const content = (
+      <ImportMedicinesModalContent
+        onImport={(file) => {
+          /* lógica de importação */
+        }}
+        onCancel={closeModal}
+        loading={false}
+        error={null}
+        success={false}
+      />
+    );
+    openModal(
+      "Importar Medicamentos",
+      "Importe medicamentos via arquivo CSV.",
+      content,
+      "md"
+    );
+  }, [openModal, closeModal]);
+
   // Efeito para buscar medicamentos na montagem
   useEffect(() => {
     fetchMedications();
-  }, [fetchMedications]);
+    fetchPendingReservations();
+  }, [fetchMedications, fetchPendingReservations]);
 
   // Definição das colunas para TanStack Table
   const columns = useMemo(
@@ -202,7 +408,7 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
         cell: (info) => (
           <span
             className="cursor-pointer text-primary hover:underline font-medium whitespace-nowrap"
-            onClick={() => setSelectedMedicineName(info.row.original)}
+            onClick={() => handleMedicineDetailsClick(info.row.original)}
           >
             {info.getValue()}
           </span>
@@ -210,15 +416,15 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
       },
       {
         accessorKey: "quantity",
-        header: () => <div className="text-center">Quantidade</div>, // Centraliza o cabeçalho
+        header: () => <div className="text-center">Quantidade</div>,
         cell: (info) => (
           <div className="text-center whitespace-nowrap">{info.getValue()}</div>
-        ), // Centraliza e evita quebra
-        filterFn: "includesString", // Define o tipo de filtro para esta coluna
+        ),
+        filterFn: "includesString",
       },
       {
         accessorKey: "updatedAt",
-        header: () => <div className="text-center">Última Atualização</div>, // Centraliza o cabeçalho
+        header: () => <div className="text-center">Última Atualização</div>,
         cell: (info) => (
           <div className="text-center whitespace-nowrap">
             {info.getValue()
@@ -229,11 +435,11 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
       },
       {
         accessorKey: "pharmacy.name",
-        header: "Farmácia", // Não centraliza o cabeçalho
+        header: "Farmácia",
         cell: (info) => (
           <span
-            className="cursor-pointer text-primary hover:underline font-medium whitespace-nowrap" // Adicionado whitespace-nowrap
-            onClick={() => setSelectedPharmacy(info.row.original.pharmacy)}
+            className="cursor-pointer text-primary hover:underline font-medium whitespace-nowrap"
+            onClick={() => handlePharmacyClick(info.row.original.pharmacy)}
           >
             {info.getValue()}
           </span>
@@ -242,49 +448,68 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
       },
       {
         accessorKey: "category",
-        header: () => <div className="text-center">Categoria</div>, // Centraliza o cabeçalho
+        header: () => <div className="text-center">Categoria</div>,
         cell: (info) => (
           <div className="text-center whitespace-nowrap">{info.getValue()}</div>
-        ), // Centraliza e evita quebra
+        ),
         filterFn: "includesString",
         enableHiding: true,
       },
       {
         accessorKey: "dosageForm",
-        header: () => <div className="text-center">Forma de Dosagem</div>, // Centraliza o cabeçalho
+        header: () => <div className="text-center">Forma de Dosagem</div>,
         cell: (info) => (
           <div className="text-center whitespace-nowrap">{info.getValue()}</div>
-        ), // Centraliza e evita quebra
+        ),
         filterFn: "includesString",
         enableHiding: true,
       },
       {
         accessorKey: "classification",
-        header: () => <div className="text-center">Classificação</div>, // Centraliza o cabeçalho
+        header: () => <div className="text-center">Classificação</div>,
         cell: (info) => (
           <div className="text-center whitespace-nowrap">{info.getValue()}</div>
-        ), // Centraliza e evita quebra
+        ),
         filterFn: "includesString",
         enableHiding: true,
       },
       {
         id: "actions",
-        header: () => <div className="text-center">Ações</div>, // Centraliza o cabeçalho
+        header: () => <div className="text-center">Ações</div>,
         cell: ({ row }) => (
           <div className="flex justify-center space-x-2 whitespace-nowrap">
-            {" "}
-            {/* Adicionado whitespace-nowrap no container dos botões */}
-            {roles !== "FARMACIA" && roles !== "GERENTE" && (
-              <button
-                onClick={() => handleReserve(row.original)}
-                className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2"
-                title="Reservar"
-                disabled={row.original.quantity <= 0}
-              >
-                Reservar
-              </button>
-            )}
-            {roles !== "CLIENTE" && (
+            {Array.isArray(roles) && roles.includes("CLIENTE") ? (
+              // Ações para CLIENTE
+              row.original.quantity > 0 ? (
+                pendingReservations.has(row.original.medicineId) ? (
+                  <button
+                    className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-gray-400 text-gray-200 shadow h-9 px-4 py-2 cursor-not-allowed"
+                    title="Reserva pendente"
+                    disabled={true}
+                  >
+                    Reserva Pendente
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleReserve(row.original)}
+                    className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2"
+                    title="Reservar"
+                    disabled={row.original.quantity <= 0}
+                  >
+                    Reservar
+                  </button>
+                )
+              ) : (
+                <button
+                  onClick={() => handleAlert(row.original)}
+                  className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-warning text-warning-foreground shadow hover:bg-warning/90 h-9 px-4 py-2"
+                  aria-label="Criar Alerta"
+                >
+                  Alerta
+                </button>
+              )
+            ) : (
+              // Ações para GERENTE, FARMACIA, ADMIN
               <>
                 <button
                   onClick={() => handleEdit(row.original)}
@@ -302,15 +527,6 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
                 </button>
               </>
             )}
-            {(roles === "FARMACIA" || roles === "GERENTE") && (
-              <button
-                onClick={() => handleAlert(row.original)}
-                className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
-                title="Criar Alerta"
-              >
-                Alertar
-              </button>
-            )}
           </div>
         ),
         enableSorting: false,
@@ -323,9 +539,8 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
       handleEdit,
       handleDelete,
       handleAlert,
-      showToast,
-      setSelectedMedicineName,
-      setSelectedPharmacy,
+      handlePharmacyClick,
+      handleMedicineDetailsClick,
     ]
   );
 
@@ -350,20 +565,19 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
     autoResetPageIndex: false,
   });
 
-  const onAddClick = () => {
-    document.getElementById("addMedicine").showModal();
-  };
-
-  const onImportClick = () => {
-    setShowImportModal(true);
-  };
-
   // Funções para pegar as opções únicas para os filtros de seleção
   const getUniqueOptions = useCallback(
     (key) => {
       const options = new Set();
       medications.forEach((med) => {
-        if (med[key]) options.add(med[key]);
+        if (
+          med &&
+          med.hasOwnProperty(key) &&
+          med[key] !== null &&
+          med[key] !== undefined
+        ) {
+          options.add(med[key]);
+        }
       });
       return Array.from(options).sort();
     },
@@ -378,125 +592,108 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
             <div className="flex-1 flex flex-col md:flex-row gap-2">
               {/* Campo de busca global */}
               <div className="relative flex-1">
-                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <input
+                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground z-10" />
+                <Input
                   type="text"
                   placeholder="Busca por medicamentos ou farmácias"
                   value={globalFilter ?? ""}
                   onChange={(e) => setGlobalFilter(e.target.value)}
-                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 ps-9 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                  className="pl-9"
                 />
               </div>
 
               {/* Filtros de seleção para categorias, formas de dosagem, classificações */}
               <div className="flex gap-2 flex-1">
-                <select
-                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50" // Shadcn select classes
-                  value={table.getColumn("category")?.getFilterValue() ?? ""}
-                  onChange={(e) =>
-                    table.getColumn("category")?.setFilterValue(e.target.value)
+                <Select
+                  value={table.getColumn("category")?.getFilterValue() ?? "all"}
+                  onValueChange={(value) =>
+                    table
+                      .getColumn("category")
+                      ?.setFilterValue(value === "all" ? "" : value)
                   }
                 >
-                  <option value="">Todas Categorias</option>
-                  {getUniqueOptions("category").map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Todas Categorias" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas Categorias</SelectItem>
+                    {getUniqueOptions("category").map((option) => (
+                      <SelectItem key={option} value={option}>
+                        {option}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
-                <select
-                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50" // Shadcn select classes
-                  value={table.getColumn("dosageForm")?.getFilterValue() ?? ""}
-                  onChange={(e) =>
+                <Select
+                  value={
+                    table.getColumn("dosageForm")?.getFilterValue() ?? "all"
+                  }
+                  onValueChange={(value) =>
                     table
                       .getColumn("dosageForm")
-                      ?.setFilterValue(e.target.value)
+                      ?.setFilterValue(value === "all" ? "" : value)
                   }
                 >
-                  <option value="">Todas Formas</option>
-                  {getUniqueOptions("dosageForm").map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Todas Formas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas Formas</SelectItem>
+                    {getUniqueOptions("dosageForm").map((option) => (
+                      <SelectItem key={option} value={option}>
+                        {option}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
-                <select
-                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50" // Shadcn select classes
+                <Select
                   value={
-                    table.getColumn("classification")?.getFilterValue() ?? ""
+                    table.getColumn("classification")?.getFilterValue() ?? "all"
                   }
-                  onChange={(e) =>
+                  onValueChange={(value) =>
                     table
                       .getColumn("classification")
-                      ?.setFilterValue(e.target.value)
+                      ?.setFilterValue(value === "all" ? "" : value)
                   }
                 >
-                  <option value="">Todas Classificações</option>
-                  {getUniqueOptions("classification").map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Todas Classificações" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas Classificações</SelectItem>
+                    {getUniqueOptions("classification").map((option) => (
+                      <SelectItem key={option} value={option}>
+                        {option}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
-            {roles !== "CLIENTE" && (
+            {(!Array.isArray(roles) || !roles.includes("CLIENTE")) && (
               <div className="flex gap-2">
-                <button
-                  onClick={onAddClick}
-                  className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2" // Shadcn button classes
-                  aria-label="Adicionar medicamento"
-                >
+                <Button onClick={onAddClick} aria-label="Adicionar medicamento">
                   <FiPlus className="text-lg" />
                   <span className="hidden sm:inline">Adicionar</span>
-                </button>
+                </Button>
 
-                {roles !== "GERENTE" && (
-                  <button
+                {(!Array.isArray(roles) || !roles.includes("GERENTE")) && (
+                  <Button
                     onClick={onImportClick}
-                    className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2" // Shadcn button classes
+                    variant="outline"
                     aria-label="Importar medicamentos"
                   >
                     <FiUploadCloud className="text-lg" />
                     <span className="hidden sm:inline">Importar</span>
-                  </button>
+                  </Button>
                 )}
               </div>
             )}
           </div>
 
-          {showImportModal && (
-            <ImportMedicinesModal
-              onClose={() => setShowImportModal(false)}
-              onSuccess={fetchMedications}
-            />
-          )}
-          <EditMedicationModal
-            isOpen={editModalOpen}
-            onClose={() => setEditModalOpen(false)}
-            selectedMedicine={selectedMedicine}
-            roles={roles}
-            pharmacyId={pharmacyId}
-            register={register}
-            errors={errors}
-            handleSubmit={handleSubmit}
-            onSave={fetchMedications}
-            showToast={showToast}
-          />
-          <ReservationModal
-            isOpen={reservationModalOpen}
-            onClose={() => setReservationModalOpen(false)}
-            onSuccess={handleReservationSuccess}
-            medicineId={selectedMedicationForReservation?.medicineId}
-            medicineName={selectedMedicationForReservation?.medicineName}
-            requiresPrescription={
-              selectedMedicationForReservation?.requiresPrescription
-            }
-            showToast={showToast}
-          />
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-border">
               <thead className="bg-muted/50">
@@ -559,13 +756,13 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
 
             {/* Controles de Paginação */}
             <div className="py-3 px-4 flex justify-between items-center bg-muted/50 text-muted-foreground rounded-b-lg">
-              <button
+              <Button
                 onClick={() => table.previousPage()}
                 disabled={!table.getCanPreviousPage()}
-                className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
+                variant="outline"
               >
                 Anterior
-              </button>
+              </Button>
               <span className="text-sm">
                 Página{" "}
                 <strong>
@@ -573,13 +770,13 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
                   {table.getPageCount()}
                 </strong>
               </span>
-              <button
+              <Button
                 onClick={() => table.nextPage()}
                 disabled={!table.getCanNextPage()}
-                className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2"
+                variant="outline"
               >
                 Próxima
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -602,28 +799,22 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
           </div>
         ))}
       </div>
-
-      <PharmacyModal
-        pharmacy={selectedPharmacy}
-        onClose={() => setSelectedPharmacy(null)}
-      />
-
-      <MedicineModal
-        medicine={selectedMedicineName}
-        onClose={() => setSelectedMedicineName(null)}
-      />
-
-      <dialog id="addMedicine" className="modal modal-bottom sm:modal-middle">
-        <AddMedication
-          pharmacyId={pharmacyId}
-          onMedicationAdded={fetchMedications}
-          roles={roles}
-          showToast={showToast}
-        />
-        <form method="dialog" className="modal-backdrop">
-          <button>close</button>
-        </form>
-      </dialog>
+      {/* --- O NOVO MODAL GENÉRICO DO SHADCN UI --- */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent
+          className={`sm:max-w-[425px] ${
+            modalSize === "lg" ? "sm:max-w-xl" : ""
+          } ${modalSize === "md" ? "sm:max-w-md" : ""} ${
+            modalSize === "full" ? "sm:max-w-full" : ""
+          }`}
+        >
+          <DialogHeader>
+            <DialogTitle>{modalTitle}</DialogTitle>
+            <DialogDescription>{modalDescription}</DialogDescription>
+          </DialogHeader>
+          {modalContent}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
