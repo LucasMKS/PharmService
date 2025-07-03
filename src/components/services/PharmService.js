@@ -538,6 +538,10 @@ const PharmService = {
   exportReport: async (params) => {
     try {
       const response = await axiosInstance.post("/reports/export", params);
+      // Se a resposta for string, faz o parse para objeto
+      if (typeof response.data === "string") {
+        return JSON.parse(response.data);
+      }
       return response.data;
     } catch (error) {
       console.error("Erro ao exportar relatório:", error);

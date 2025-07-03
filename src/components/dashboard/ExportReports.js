@@ -20,6 +20,11 @@ const ExportReports = () => {
     setTimeout(() => setToast({ show: false, message: "", type: "" }), 3000);
   };
 
+  const formatDateForBackend = (date) => {
+    // Retorna no formato 'yyyy-MM-ddTHH:mm:ss'
+    return date.toISOString().slice(0, 19);
+  };
+
   const handleExport = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -28,8 +33,8 @@ const ExportReports = () => {
       const reportData = {
         reportType,
         format,
-        start: startDate.toISOString(),
-        end: endDate.toISOString(),
+        start: formatDateForBackend(startDate),
+        end: formatDateForBackend(endDate),
         pharmacyId: null, // Ajuste conforme necessário
         pharmacyName: "",
         name: "",
@@ -40,9 +45,10 @@ const ExportReports = () => {
 
       const response = await PharmService.exportReport(reportData);
 
-      if (response.success && response.downloadUrl) {
-        // Abrir o PDF em nova aba
-        window.open(response.downloadUrl, "_blank", "noopener,noreferrer");
+      if (response.success && (response.downloadUrl || response.download_url)) {
+        // Compatibilidade com downloadUrl ou download_url
+        const url = response.downloadUrl || response.download_url;
+        window.open(url, "_blank", "noopener,noreferrer");
         showToast("Relatório exportado com sucesso!");
       } else {
         showToast(response.message || "Erro ao exportar relatório", "error");
