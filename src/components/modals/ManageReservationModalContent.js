@@ -1,13 +1,32 @@
-import React from "react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 
-const ManageReservationModalContent = ({ reservation, onManage, onCancel }) => {
+const ManageReservationModalContent = ({
+  reservation,
+  onConfirm,
+  onCancel,
+}) => {
   const { register, handleSubmit, watch } = useForm();
-  const selectedStatus = watch("status", "aprovado");
+  const [loading, setLoading] = useState(false);
 
-  const onSubmit = (data) => {
-    onManage(reservation.id, data.status, data.message);
-    onCancel();
+  // Define o status padrão baseado no status atual da reserva
+  const getDefaultStatus = () => {
+    if (!reservation) return "aprovado";
+    if (reservation.status === "pendente") return "aprovado";
+    if (reservation.status === "aprovado") return "concluido";
+    return "aprovado";
+  };
+
+  const selectedStatus = watch("status", getDefaultStatus());
+
+  const onSubmit = async (data) => {
+    setLoading(true);
+    try {
+      await onConfirm(reservation.id, data.status, data.message);
+      onCancel();
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!reservation) return null;
@@ -21,14 +40,28 @@ const ManageReservationModalContent = ({ reservation, onManage, onCancel }) => {
         <select
           className="select select-bordered w-full dark:bg-neutral-700 dark:text-white"
           {...register("status", { required: true })}
-          defaultValue="aprovado"
+          defaultValue={getDefaultStatus()}
         >
-          <option value="aprovado" className="dark:bg-neutral-800">
-            Aprovar
-          </option>
-          <option value="cancelado" className="dark:bg-neutral-800">
-            Cancelar
-          </option>
+          {reservation.status === "pendente" && (
+            <>
+              <option value="aprovado" className="dark:bg-neutral-800">
+                Aprovar
+              </option>
+              <option value="cancelado" className="dark:bg-neutral-800">
+                Cancelar
+              </option>
+            </>
+          )}
+          {reservation.status === "aprovado" && (
+            <>
+              <option value="concluido" className="dark:bg-neutral-800">
+                Concluir
+              </option>
+              <option value="cancelado" className="dark:bg-neutral-800">
+                Cancelar
+              </option>
+            </>
+          )}
         </select>
       </div>
       {selectedStatus === "cancelado" && (
@@ -48,11 +81,20 @@ const ManageReservationModalContent = ({ reservation, onManage, onCancel }) => {
         </div>
       )}
       <div className="flex gap-3 justify-end mt-6">
-        <button type="button" className="btn btn-ghost" onClick={onCancel}>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={onCancel}
+          disabled={loading}
+        >
           Cancelar
         </button>
-        <button type="submit" className="btn btn-primary">
-          Confirmar
+        <button type="submit" className="btn btn-primary" disabled={loading}>
+          {loading
+            ? "Processando..."
+            : reservation.status === "pendente"
+            ? "Aprovar"
+            : "Concluir"}
         </button>
       </div>
     </form>

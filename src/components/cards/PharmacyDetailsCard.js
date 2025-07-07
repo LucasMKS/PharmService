@@ -31,9 +31,6 @@ const PharmacyDetailsCard = ({ pharmacy }) => {
         <InfoItem icon={<FiPhone />} label="Telefone">
           {pharmacy.phone}
         </InfoItem>
-        <InfoItem icon={<FiUsers />} label="Funcionários">
-          {pharmacy.employees?.length || 0}
-        </InfoItem>
       </div>
     </div>
   );

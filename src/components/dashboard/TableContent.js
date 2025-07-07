@@ -159,6 +159,7 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
     if (Array.isArray(roles) && roles.includes("CLIENTE")) {
       try {
         const userReservations = await PharmService.getReservationsByUser();
+
         const pendingStockIds = userReservations
           .filter(
             (reservation) =>
@@ -167,6 +168,7 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
               reservation.medicine.medicineId
           )
           .map((reservation) => reservation.medicine.medicineId);
+
         setPendingReservations(new Set(pendingStockIds));
       } catch (error) {
         console.error("Erro ao buscar reservas pendentes:", error);
@@ -212,12 +214,20 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
             try {
               setReservationLoading(true);
 
-              // Validar se prescrição é obrigatória mas não foi fornecida
               if (medication?.requiresPrescription && !file) {
                 showToast(
                   "Prescrição médica é obrigatória para este medicamento",
                   "error"
                 );
+                setReservationLoading(false);
+                return;
+              }
+              // Validação do stockId
+              if (
+                !medication?.medicineId ||
+                isNaN(Number(medication.medicineId))
+              ) {
+                showToast("Selecione um medicamento/estoque válido!", "error");
                 setReservationLoading(false);
                 return;
               }
@@ -237,13 +247,9 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
                 formData.append("prescription", file);
               }
 
-              // Chamar o serviço de reserva
               await PharmService.createReservation(formData);
 
-              // Sucesso
               showToast("Reserva realizada com sucesso!");
-
-              // Atualizar a lista de medicamentos (diminuir quantidade)
               setMedications((prev) =>
                 prev.map((med) =>
                   med.medicineId === medication.medicineId
@@ -251,13 +257,8 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
                     : med
                 )
               );
-
-              // Adicionar à lista de reservas pendentes
-              setPendingReservations(
-                (prev) => new Set([...prev, medication.medicineId])
-              );
-
-              // Fechar modal apenas após sucesso
+              // Atualizar reservas pendentes após criar nova reserva
+              fetchPendingReservations();
               closeModal();
             } catch (error) {
               console.error("Erro ao criar reserva:", error);
@@ -396,8 +397,18 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
   // Efeito para buscar medicamentos na montagem
   useEffect(() => {
     fetchMedications();
+  }, [fetchMedications]);
+
+  // Efeito separado para buscar reservas pendentes
+  useEffect(() => {
     fetchPendingReservations();
-  }, [fetchMedications, fetchPendingReservations]);
+  }, [fetchPendingReservations]);
+
+  // Efeito para atualizar reservas apenas quando necessário
+  useEffect(() => {
+    // Buscar reservas pendentes apenas na montagem inicial do componente
+    fetchPendingReservations();
+  }, [fetchPendingReservations]);
 
   // Definição das colunas para TanStack Table
   const columns = useMemo(
@@ -535,6 +546,7 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
     ],
     [
       roles,
+      pendingReservations,
       handleReserve,
       handleEdit,
       handleDelete,

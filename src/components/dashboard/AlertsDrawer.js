@@ -55,10 +55,10 @@ const AlertsDrawer = ({ isOpen, onClose, alerts, onDeleteAlert }) => {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <h3 className="font-medium text-foreground">
-                        {alert.medicine?.medicineName || "Medicamento"}
+                        {alert.medicineName || "Medicamento"}
                       </h3>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Farmácia: {alert.medicine?.pharmacy?.name || "N/A"}
+                        Farmácia: {alert.pharmacyName || "N/A"}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
                         Criado em:{" "}

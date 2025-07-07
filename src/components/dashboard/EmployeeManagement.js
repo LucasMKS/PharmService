@@ -21,9 +21,13 @@ const EmployeeManagement = () => {
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [toast, setToast] = useState({ show: false, message: "", type: "" });
 
-  const userRole =
+  const roles =
     typeof window !== "undefined"
       ? JSON.parse(sessionStorage.getItem("user") || "{}").roles
+      : null;
+  const pharmacyId =
+    typeof window !== "undefined"
+      ? JSON.parse(sessionStorage.getItem("user") || "{}").pharmacyId
       : null;
 
   const showToast = (message, type = "success") => {
@@ -34,7 +38,25 @@ const EmployeeManagement = () => {
   const fetchEmployees = async () => {
     try {
       setLoading(true);
-      const response = await PharmService.getAllEmployees();
+
+      let response;
+      if (Array.isArray(roles) && roles.includes("ADMIN")) {
+        response = await PharmService.getAllEmployees();
+      } else if (Array.isArray(roles) && roles.includes("GERENTE")) {
+        if (pharmacyId) {
+          response = await PharmService.getPharmacyEmployees(pharmacyId);
+        } else {
+          setError("ID da farmácia não encontrado para o gerente.");
+          showToast("ID da farmácia não encontrado para o gerente.", "error");
+        }
+      } else {
+        setError("Você não tem permissão para visualizar funcionários.");
+        showToast(
+          "Você não tem permissão para visualizar funcionários.",
+          "error"
+        );
+      }
+      console.log("Resposta da API EmployeeManagement:", response);
       setEmployees(response);
     } catch (error) {
       setError("Erro ao carregar funcionários");
@@ -125,7 +147,7 @@ const EmployeeManagement = () => {
                   >
                     Cargo
                   </th>
-                  {Array.isArray(userRole) && userRole.includes("ADMIN") && (
+                  {Array.isArray(roles) && roles.includes("ADMIN") && (
                     <th className="px-6 py-3 text-start text-xs font-medium text-muted-foreground uppercase">
                       Farmácia
                     </th>
@@ -180,9 +202,7 @@ const EmployeeManagement = () => {
                   <tr>
                     <td
                       colSpan={
-                        Array.isArray(userRole) && userRole.includes("ADMIN")
-                          ? 5
-                          : 4
+                        Array.isArray(roles) && roles.includes("ADMIN") ? 5 : 4
                       }
                       className="text-center py-4 text-muted-foreground"
                     >

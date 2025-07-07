@@ -50,6 +50,7 @@ export const Dashboard = () => {
   const refreshAlerts = useCallback(async () => {
     try {
       const alerts = await PharmService.getActiveAlerts();
+      console.log(alerts);
       setUserAlerts(alerts);
     } catch (error) {
       console.error("Erro ao atualizar alertas:", error);

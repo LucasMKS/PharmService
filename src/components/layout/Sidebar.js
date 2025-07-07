@@ -80,15 +80,16 @@ const Sidebar = ({ setSelectedContent, refreshAlerts, userAlerts }) => {
             open={open}
           />
 
-          {Array.isArray(roles) && roles.includes("GERENTE") && (
-            <Option
-              Icon={FiMonitor}
-              title="Funcionarios"
-              selected={selected}
-              setSelected={handleOptionSelect}
-              open={open}
-            />
-          )}
+          {Array.isArray(roles) &&
+            (roles.includes("GERENTE") || roles.includes("ADMIN")) && (
+              <Option
+                Icon={FiMonitor}
+                title="Funcionarios"
+                selected={selected}
+                setSelected={handleOptionSelect}
+                open={open}
+              />
+            )}
 
           {Array.isArray(roles) && roles.includes("GERENTE") && (
             <Option

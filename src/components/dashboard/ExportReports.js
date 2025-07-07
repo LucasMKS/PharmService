@@ -43,15 +43,58 @@ const ExportReports = () => {
           reportType === "employees" && employeeId ? employeeId : null,
       };
 
-      const response = await PharmService.exportReport(reportData);
-
-      if (response.success && (response.downloadUrl || response.download_url)) {
-        // Compatibilidade com downloadUrl ou download_url
-        const url = response.downloadUrl || response.download_url;
-        window.open(url, "_blank", "noopener,noreferrer");
+      if (reportType === "clients" && format === "pdf") {
+        // Novo fluxo: baixar PDF gerado pelo backend para clientes
+        const response = await PharmService.exportClientReportPDF(reportData);
+        const url = window.URL.createObjectURL(
+          new Blob([response.data], { type: "application/pdf" })
+        );
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", "relatorio_clientes.pdf");
+        document.body.appendChild(link);
+        link.click();
+        link.parentNode.removeChild(link);
+        showToast("Relatório exportado com sucesso!");
+      } else if (reportType === "stock" && format === "pdf") {
+        // Novo fluxo: baixar PDF gerado pelo backend para estoque
+        const response = await PharmService.exportStockReportPDF(reportData);
+        const url = window.URL.createObjectURL(
+          new Blob([response.data], { type: "application/pdf" })
+        );
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", "relatorio_estoque.pdf");
+        document.body.appendChild(link);
+        link.click();
+        link.parentNode.removeChild(link);
+        showToast("Relatório exportado com sucesso!");
+      } else if (reportType === "employees" && format === "pdf") {
+        // Novo fluxo: baixar PDF gerado pelo backend para funcionários
+        const response = await PharmService.exportEmployeeReportPDF(reportData);
+        const url = window.URL.createObjectURL(
+          new Blob([response.data], { type: "application/pdf" })
+        );
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", "relatorio_funcionarios.pdf");
+        document.body.appendChild(link);
+        link.click();
+        link.parentNode.removeChild(link);
         showToast("Relatório exportado com sucesso!");
       } else {
-        showToast(response.message || "Erro ao exportar relatório", "error");
+        // Fluxo antigo para outros tipos
+        const response = await PharmService.exportReport(reportData);
+        if (
+          response.success &&
+          (response.downloadUrl || response.download_url)
+        ) {
+          const url = response.downloadUrl || response.download_url;
+          window.open(url, "_blank", "noopener,noreferrer");
+          showToast("Relatório exportado com sucesso!");
+        } else {
+          showToast(response.message || "Erro ao exportar relatório", "error");
+        }
       }
     } catch (error) {
       showToast(error.message || "Erro ao exportar relatório", "error");

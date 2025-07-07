@@ -39,6 +39,11 @@ const StatusBadge = ({ status }) => {
       text: "Aprovado",
       icon: <FiCheckCircle />,
     },
+    concluido: {
+      color: "bg-blue-600",
+      text: "Concluído",
+      icon: <FiCheckCircle />,
+    },
     cancelado: { color: "bg-red-600", text: "Cancelado", icon: <FiXCircle /> },
   };
 
@@ -66,6 +71,9 @@ const Reservation = () => {
   const [selectedReservation, setSelectedReservation] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [toast, setToast] = useState({ show: false, message: "", type: "" });
+  const [cancellingReservations, setCancellingReservations] = useState(
+    new Set()
+  );
 
   // Estados do TanStack Table
   const [columnFilters, setColumnFilters] = useState([]);
@@ -133,6 +141,33 @@ const Reservation = () => {
       setSelectedUser(userData);
     } catch (error) {
       showToast("Erro ao carregar dados do usuário", "error");
+    }
+  };
+
+  const handleCancelReservation = async (reservationId) => {
+    if (window.confirm("Tem certeza que deseja cancelar esta reserva?")) {
+      try {
+        // Adiciona o ID da reserva ao Set de reservas sendo canceladas
+        setCancellingReservations((prev) => new Set([...prev, reservationId]));
+
+        await PharmService.cancelOwnReservation(
+          reservationId,
+          "Cancelado pelo cliente"
+        );
+        showToast("Reserva cancelada com sucesso!");
+        fetchReservations();
+      } catch (error) {
+        const errorMessage =
+          error.response?.data || error.message || "Erro ao cancelar reserva";
+        showToast(errorMessage, "error");
+      } finally {
+        // Remove o ID da reserva do Set de reservas sendo canceladas
+        setCancellingReservations((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(reservationId);
+          return newSet;
+        });
+      }
     }
   };
 
@@ -205,6 +240,17 @@ const Reservation = () => {
         accessorKey: "status",
         header: "Status",
         cell: (info) => <StatusBadge status={info.getValue()} />,
+        sortingFn: (rowA, rowB) => {
+          const statusOrder = {
+            pendente: 0,
+            aprovado: 1,
+            concluido: 2,
+            cancelado: 3,
+          };
+          const statusA = statusOrder[rowA.original.status] || 4;
+          const statusB = statusOrder[rowB.original.status] || 4;
+          return statusA - statusB;
+        },
       },
       {
         accessorKey: "expirationDate",
@@ -214,27 +260,78 @@ const Reservation = () => {
       {
         id: "actions",
         header: "Ações",
-        cell: ({ row }) =>
-          (!Array.isArray(roles) || !roles.includes("CLIENTE")) && (
-            <div className="flex space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setSelectedReservation(row.original);
-                  setManageModalOpen(true);
-                }}
-                disabled={row.original.status !== "pendente"}
-                title="Gerenciar reserva"
-              >
-                <FiEdit className="text-sm" />
-              </Button>
-            </div>
-          ),
+        cell: ({ row }) => {
+          // Para CLIENTE: mostrar botão de cancelar se estiver pendente
+          if (Array.isArray(roles) && roles.includes("CLIENTE")) {
+            const isCancelling = cancellingReservations.has(row.original.id);
+            return row.original.status === "pendente" ? (
+              <div className="flex space-x-2">
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleCancelReservation(row.original.id)}
+                  disabled={isCancelling}
+                  title={isCancelling ? "Cancelando..." : "Cancelar reserva"}
+                >
+                  <FiXCircle className="text-sm" />
+                  {isCancelling ? "Cancelando..." : "Cancelar"}
+                </Button>
+              </div>
+            ) : (
+              <div className="text-muted-foreground text-sm">
+                {row.original.status === "aprovado" ? "Aprovada" : "Cancelada"}
+              </div>
+            );
+          }
+
+          // Para ADMIN, GERENTE, FARMACIA: mostrar botão específico para cada status
+          const getActionButton = () => {
+            switch (row.original.status) {
+              case "pendente":
+                return (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedReservation(row.original);
+                      setManageModalOpen(true);
+                    }}
+                    title="Gerenciar reserva pendente"
+                  >
+                    <FiEdit className="text-sm" />
+                  </Button>
+                );
+              case "aprovado":
+                return (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedReservation(row.original);
+                      setManageModalOpen(true);
+                    }}
+                    title="Concluir reserva aprovada"
+                  >
+                    <FiCheckCircle className="text-sm" />
+                  </Button>
+                );
+              default:
+                return (
+                  <div className="text-muted-foreground text-sm">
+                    {row.original.status === "concluido"
+                      ? "Concluída"
+                      : "Cancelada"}
+                  </div>
+                );
+            }
+          };
+
+          return <div className="flex space-x-2">{getActionButton()}</div>;
+        },
         enableSorting: false,
       },
     ],
-    [roles, handleUserClick]
+    [roles, handleUserClick, handleCancelReservation, cancellingReservations]
   );
 
   // Instância da tabela
@@ -256,6 +353,14 @@ const Reservation = () => {
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     autoResetPageIndex: false,
+    initialState: {
+      sorting: [
+        {
+          id: "status",
+          desc: false,
+        },
+      ],
+    },
   });
 
   if (loading) {
@@ -382,9 +487,15 @@ const Reservation = () => {
       <Dialog open={manageModalOpen} onOpenChange={setManageModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Gerenciar Reserva</DialogTitle>
+            <DialogTitle>
+              {selectedReservation?.status === "pendente"
+                ? "Aprovar Reserva"
+                : "Concluir Reserva"}
+            </DialogTitle>
             <DialogDescription>
-              Aprove ou rejeite esta reserva de medicamento.
+              {selectedReservation?.status === "pendente"
+                ? "Aprove ou rejeite esta reserva de medicamento."
+                : "Conclua ou cancele esta reserva aprovada."}
             </DialogDescription>
           </DialogHeader>
           <ManageReservationModalContent

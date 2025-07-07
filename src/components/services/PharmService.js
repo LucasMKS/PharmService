@@ -362,6 +362,9 @@ const PharmService = {
         throw new Error("Usuário não autenticado");
       }
 
+      console.log("Dados do usuário para gerenciar reserva:", userData);
+      console.log("Token:", localStorage.getItem("token"));
+
       await axiosInstance.post("/reservations/manage", null, {
         params: {
           reservationId,
@@ -377,6 +380,30 @@ const PharmService = {
       });
     } catch (error) {
       console.error("Erro ao gerenciar reserva:", error);
+      console.error("Response data:", error.response?.data);
+      console.error("Response status:", error.response?.status);
+      throw error;
+    }
+  },
+
+  cancelOwnReservation: async (reservationId, cancelReason) => {
+    try {
+      const userData = getUserData();
+      if (!userData) {
+        throw new Error("Usuário não autenticado");
+      }
+
+      await axiosInstance.post("/reservations/cancel", null, {
+        params: {
+          reservationId,
+          cancelReason,
+        },
+        headers: {
+          Authorization: `Bearer ${sessionStorage.getItem("token")}`,
+        },
+      });
+    } catch (error) {
+      console.error("Erro ao cancelar reserva:", error);
       throw error;
     }
   },
@@ -412,9 +439,11 @@ const PharmService = {
     }
   },
 
-  // Método para buscar todos os funcionários (ADMIN)
+  // ADMIN: buscar todos os funcionários
   getAllEmployees: async () => {
     try {
+      const userData = getUserData();
+      if (!userData) throw new Error("Usuário não autenticado");
       const response = await axiosInstance.get("/pharmacies/employees/all");
       return response.data;
     } catch (error) {
@@ -423,11 +452,16 @@ const PharmService = {
     }
   },
 
-  // Método para buscar funcionários de uma farmácia específica (GERENTE)
+  // GERENTE: buscar funcionários da própria farmácia
   getPharmacyEmployees: async (pharmacyId) => {
     try {
+      const userData = getUserData();
+      if (!userData) throw new Error("Usuário não autenticado");
       const response = await axiosInstance.get(
-        `/pharmacies/${pharmacyId}/employees`
+        `/pharmacies/${pharmacyId}/employees`,
+        {
+          params: { userId: userData.userId },
+        }
       );
       return response.data;
     } catch (error) {
@@ -436,16 +470,35 @@ const PharmService = {
     }
   },
 
-  // Método para adicionar um novo funcionário
-  addEmployee: async (pharmacyId, employeeEmail) => {
+  // ADMIN: adicionar funcionário em qualquer farmácia
+  addEmployee: async (email, pharmacyId) => {
     try {
-      const response = await axiosInstance.post("/pharmacies/employees/add", {
+      const response = await axiosInstance.post("/employees", {
+        email,
         pharmacyId,
-        employeeEmail,
       });
       return response.data;
     } catch (error) {
       console.error("Erro ao adicionar funcionário:", error);
+      throw error;
+    }
+  },
+
+  // GERENTE: adicionar funcionário na própria farmácia
+  addEmployeeByManager: async (email, pharmacyId) => {
+    try {
+      const userData = getUserData();
+      if (!userData) throw new Error("Usuário não autenticado");
+      const response = await axiosInstance.post(
+        `/pharmacies/${pharmacyId}/employees`,
+        { email },
+        {
+          params: { userId: userData.userId },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao adicionar funcionário pela gerente:", error);
       throw error;
     }
   },
@@ -669,6 +722,84 @@ const PharmService = {
     } catch (error) {
       console.error("Erro ao buscar usuário:", error);
       throw error;
+    }
+  },
+
+  exportClientReportPDF: async (params) => {
+    try {
+      const userData = getUserData();
+      const response = await axiosInstance.post(
+        "/reports/export-client-pdf",
+        params,
+        {
+          responseType: "blob",
+          headers: {
+            Authorization: userData?.token
+              ? `Bearer ${userData.token}`
+              : undefined,
+          },
+        }
+      );
+      return response;
+    } catch (error) {
+      console.error("Erro ao exportar relatório PDF:", error);
+      let message = error.message;
+      if (error.response) {
+        message = error.response.data?.message || message;
+      }
+      throw new Error(message);
+    }
+  },
+
+  exportStockReportPDF: async (params) => {
+    try {
+      const userData = getUserData();
+      const response = await axiosInstance.post(
+        "/reports/export-stock-pdf",
+        params,
+        {
+          responseType: "blob",
+          headers: {
+            Authorization: userData?.token
+              ? `Bearer ${userData.token}`
+              : undefined,
+          },
+        }
+      );
+      return response;
+    } catch (error) {
+      console.error("Erro ao exportar relatório de estoque PDF:", error);
+      let message = error.message;
+      if (error.response) {
+        message = error.response.data?.message || message;
+      }
+      throw new Error(message);
+    }
+  },
+
+  exportEmployeeReportPDF: async (params) => {
+    try {
+      const userData = getUserData();
+      const response = await axiosInstance.post(
+        "/reports/export-employee-pdf",
+        params,
+        {
+          responseType: "blob",
+          headers: {
+            Authorization: userData?.token
+              ? `Bearer ${userData.token}`
+              : undefined,
+          },
+        }
+      );
+      return response;
+    } catch (error) {
+      console.error("Erro ao exportar relatório de funcionários PDF:", error);
+      let message = error.message;
+      if (error.response) {
+        message = error.response.data?.message || message;
+      }
+      throw new Error(message);
     }
   },
 };
