@@ -6,6 +6,7 @@ import "./globals.css";
 import Footer from "@components/layout/Footer";
 import ThemeSwitcher from "@components/theme/ThemeSwitcher";
 import BlockMobile from "@/components/mobile/BlockMobile";
+import { Toaster } from "@/components/ui/toaster";
 
 // Fontes (mantidas iguais)
 const inter = Inter({
@@ -62,6 +63,7 @@ export default function RootLayout({ children }) {
           </Suspense>
 
           <Footer />
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>

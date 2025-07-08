@@ -129,12 +129,25 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
     try {
       setError(null);
       NProgress.start();
-      const response =
-        roles === "FARMACIA" || roles === "GERENTE"
-          ? pharmacyId
-            ? await PharmService.getMedicineByPharmacyId(pharmacyId)
-            : await PharmService.getAllMedicines()
-          : await PharmService.getAllMedicines();
+
+      let response;
+      if (Array.isArray(roles) && roles.includes("CLIENTE")) {
+        // Cliente pode ver todos os medicamentos
+        response = await PharmService.getAllMedicines();
+      } else if (
+        Array.isArray(roles) &&
+        (roles.includes("GERENTE") || roles.includes("FARMACIA"))
+      ) {
+        // Gerente e Funcionário só podem ver medicamentos da própria farmácia
+        // O backend já filtra automaticamente baseado no userId
+        response = await PharmService.getAllMedicines();
+      } else if (roles === "ADMIN") {
+        // Admin pode ver todos os medicamentos
+        response = await PharmService.getAllMedicines();
+      } else {
+        // Fallback para outros casos
+        response = await PharmService.getAllMedicines();
+      }
 
       const data = Array.isArray(response)
         ? response

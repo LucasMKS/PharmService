@@ -131,7 +131,19 @@ const PharmService = {
   // Método para buscar todos os medicamentos
   getAllMedicines: async () => {
     try {
-      const response = await axiosInstance.get("/medicine/all");
+      const userData = getUserData();
+      if (!userData) {
+        throw new Error("Usuário não autenticado");
+      }
+
+      const response = await axiosInstance.get("/medicine/all", {
+        headers: {
+          userId: userData.userId,
+          role: Array.isArray(userData.roles)
+            ? userData.roles[0]
+            : userData.roles,
+        },
+      });
       return response.data;
     } catch (error) {
       console.error("Erro ao buscar medicamentos:", error);
@@ -153,8 +165,21 @@ const PharmService = {
   // Método para buscar um medicamento pela farmacia
   getMedicineByPharmacyId: async (pharmacyId) => {
     try {
+      const userData = getUserData();
+      if (!userData) {
+        throw new Error("Usuário não autenticado");
+      }
+
       const response = await axiosInstance.get(
-        `/medicine/pharmacy/${pharmacyId}`
+        `/medicine/pharmacy/${pharmacyId}`,
+        {
+          headers: {
+            userId: userData.userId,
+            role: Array.isArray(userData.roles)
+              ? userData.roles[0]
+              : userData.roles,
+          },
+        }
       );
       return response.data;
     } catch (error) {
@@ -626,6 +651,64 @@ const PharmService = {
     }
   },
 
+  getPharmacyById: async (pharmacyId) => {
+    try {
+      const userData = getUserData();
+      if (!userData) {
+        throw new Error("Usuário não autenticado");
+      }
+
+      const response = await axiosInstance.get(`/pharmacies/${pharmacyId}`, {
+        headers: {
+          userId: userData.userId,
+          role: Array.isArray(userData.roles)
+            ? userData.roles[0]
+            : userData.roles,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao buscar farmácia:", error);
+      throw error;
+    }
+  },
+
+  updatePharmacy: async (pharmacyId, data) => {
+    try {
+      const userData = getUserData();
+      if (!userData) {
+        throw new Error("Usuário não autenticado");
+      }
+
+      const response = await axiosInstance.put(
+        `/pharmacies/${pharmacyId}`,
+        data,
+        {
+          headers: {
+            userId: userData.userId,
+            role: Array.isArray(userData.roles)
+              ? userData.roles[0]
+              : userData.roles,
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao atualizar farmácia:", error);
+      throw error;
+    }
+  },
+
+  deletePharmacy: async (pharmacyId) => {
+    try {
+      const response = await axiosInstance.delete(`/pharmacies/${pharmacyId}`);
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao deletar farmácia:", error);
+      throw error;
+    }
+  },
+
   addEmployeeToPharmacy: async (data) => {
     try {
       const response = await axiosInstance.post(
@@ -800,6 +883,127 @@ const PharmService = {
         message = error.response.data?.message || message;
       }
       throw new Error(message);
+    }
+  },
+
+  // Métodos para gestão de funcionários
+  getPharmacyEmployees: async (pharmacyId) => {
+    try {
+      const userData = getUserData();
+      if (!userData) {
+        throw new Error("Usuário não autenticado");
+      }
+
+      const response = await axiosInstance.get(
+        `/pharmacies/${pharmacyId}/employees`,
+        {
+          headers: {
+            userId: userData.userId,
+            role: Array.isArray(userData.roles)
+              ? userData.roles[0]
+              : userData.roles,
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao buscar funcionários:", error);
+      throw error;
+    }
+  },
+
+  addEmployeeToPharmacy: async (pharmacyId, employeeData) => {
+    try {
+      const userData = getUserData();
+      if (!userData) {
+        throw new Error("Usuário não autenticado");
+      }
+
+      const response = await axiosInstance.post(
+        `/pharmacies/${pharmacyId}/employees`,
+        employeeData,
+        {
+          headers: {
+            userId: userData.userId,
+            role: Array.isArray(userData.roles)
+              ? userData.roles[0]
+              : userData.roles,
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao adicionar funcionário:", error);
+      throw error;
+    }
+  },
+
+  removeEmployeeFromPharmacy: async (pharmacyId, employeeId) => {
+    try {
+      const userData = getUserData();
+      if (!userData) {
+        throw new Error("Usuário não autenticado");
+      }
+
+      const response = await axiosInstance.delete(
+        `/pharmacies/${pharmacyId}/employees/${employeeId}`,
+        {
+          headers: {
+            userId: userData.userId,
+            role: Array.isArray(userData.roles)
+              ? userData.roles[0]
+              : userData.roles,
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao remover funcionário:", error);
+      throw error;
+    }
+  },
+
+  promoteEmployeeToManager: async (pharmacyId, employeeId) => {
+    try {
+      const userData = getUserData();
+      if (!userData) {
+        throw new Error("Usuário não autenticado");
+      }
+
+      const response = await axiosInstance.put(
+        `/pharmacies/${pharmacyId}/employees/${employeeId}/promote`,
+        {},
+        {
+          headers: {
+            userId: userData.userId,
+            role: Array.isArray(userData.roles)
+              ? userData.roles[0]
+              : userData.roles,
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao promover funcionário:", error);
+      throw error;
+    }
+  },
+
+  getMyPharmacy: async () => {
+    try {
+      const userData = getUserData();
+      if (!userData) {
+        throw new Error("Usuário não autenticado");
+      }
+      const response = await axiosInstance.get("/pharmacies/my", {
+        headers: {
+          userId: userData.userId,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao buscar sua farmácia:", error);
+      throw error;
     }
   },
 };

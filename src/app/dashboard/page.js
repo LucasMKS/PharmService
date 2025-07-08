@@ -7,9 +7,9 @@ import PharmService from "@/components/services/PharmService";
 import Sidebar from "@/components/layout/Sidebar";
 import TableContent from "@/components/dashboard/TableContent";
 import Reservation from "@/components/dashboard/Reservation";
-import EmployeeManagement from "@/components/dashboard/EmployeeManagement";
 import ExportReports from "@/components/dashboard/ExportReports";
-import PharmacyManagement from "@/components/pharmacy/PharmacyManagement";
+import PharmacyManagement from "@/components/dashboard/PharmacyManagement";
+import EmployeeManagement from "@/components/dashboard/EmployeeManagement";
 import { ClipLoader } from "react-spinners";
 
 // Componente de carregamento global
@@ -36,6 +36,7 @@ const CONTENT_MAP = {
 
 export const Dashboard = () => {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
 
   const sessionData = getSessionData("user", {});
   const roles = user?.roles || sessionData.roles;
@@ -43,7 +44,15 @@ export const Dashboard = () => {
 
   const [userAlerts, setUserAlerts] = useState([]);
   const [isPageLoading, setIsPageLoading] = useState(true);
-  const [currentContent, setCurrentContent] = useState("Dashboard");
+  // Determinar o conteúdo inicial baseado nos parâmetros da URL
+  const getInitialContent = () => {
+    const contentParam = searchParams.get("content");
+    return contentParam && CONTENT_MAP[contentParam]
+      ? contentParam
+      : "Dashboard";
+  };
+
+  const [currentContent, setCurrentContent] = useState(getInitialContent());
   const [isContentLoading, setIsContentLoading] = useState(false);
 
   // Memoize a função de refresh para evitar recriações desnecessárias
@@ -118,6 +127,7 @@ export const Dashboard = () => {
         roles={roles}
         userAlerts={userAlerts}
         refreshAlerts={refreshAlerts}
+        initialSelected={getInitialContent()}
       />
 
       <main className="flex-1">

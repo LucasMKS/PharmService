@@ -15,22 +15,30 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import AlertsDrawer from "../dashboard/AlertsDrawer";
 import PharmService from "../services/PharmService";
-import UserSettingsModalContent from "../modals/UserSettingsModalContent";
 
-const Sidebar = ({ setSelectedContent, refreshAlerts, userAlerts }) => {
+const Sidebar = ({
+  setSelectedContent,
+  refreshAlerts,
+  userAlerts = [],
+  user: propUser,
+  initialSelected = "Dashboard",
+}) => {
   const [open, setOpen] = useState(true);
-  const [selected, setSelected] = useState("Dashboard");
-  const { user, logout, updateUser } = useAuth();
+  const [selected, setSelected] = useState(initialSelected);
+  const { user: authUser, logout, updateUser } = useAuth();
   const [alertsDrawerOpen, setAlertsDrawerOpen] = useState(false);
-  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+
+  // Usar o usuário da prop se disponível, senão usar o do contexto de auth
+  const user = propUser || authUser;
   const roles = user ? user.roles : "";
 
   // Função para deletar alerta
   const handleDeleteAlert = async (alertId) => {
     try {
       await PharmService.deleteAlert(alertId);
-      refreshAlerts(); // Atualiza via função do pai
-
+      if (refreshAlerts) {
+        refreshAlerts(); // Atualiza via função do pai
+      }
       alert("Alerta removido com sucesso!");
     } catch (error) {
       alert(`Erro ao remover alerta: ${error.message}`);
@@ -39,14 +47,16 @@ const Sidebar = ({ setSelectedContent, refreshAlerts, userAlerts }) => {
 
   // Função para atualizar dados do usuário
   const handleUserUpdate = (updatedUser) => {
-    if (updatedUser) {
+    if (updatedUser && updateUser) {
       updateUser(updatedUser);
     }
   };
 
   const handleOptionSelect = (title) => {
     setSelected(title);
-    setSelectedContent(title);
+    if (setSelectedContent) {
+      setSelectedContent(title);
+    }
   };
 
   return (
@@ -62,7 +72,7 @@ const Sidebar = ({ setSelectedContent, refreshAlerts, userAlerts }) => {
         <TitleSection
           open={open}
           user={user}
-          onSettingsClick={() => setSettingsModalOpen(true)}
+          onSettingsClick={() => handleOptionSelect("Configurações")}
         />
         <div className="space-y-1">
           <Option
@@ -101,15 +111,18 @@ const Sidebar = ({ setSelectedContent, refreshAlerts, userAlerts }) => {
             />
           )}
 
-          {Array.isArray(roles) && roles.includes("ADMIN") && (
-            <Option
-              Icon={FiFileText}
-              title="Farmácias"
-              selected={selected}
-              setSelected={handleOptionSelect}
-              open={open}
-            />
-          )}
+          {Array.isArray(roles) &&
+            (roles.includes("GERENTE") ||
+              roles.includes("ADMIN") ||
+              roles.includes("CLIENTE")) && (
+              <Option
+                Icon={FiFileText}
+                title="Farmácias"
+                selected={selected}
+                setSelected={handleOptionSelect}
+                open={open}
+              />
+            )}
 
           {Array.isArray(roles) && roles.includes("CLIENTE") && (
             <div className="relative">
@@ -130,7 +143,7 @@ const Sidebar = ({ setSelectedContent, refreshAlerts, userAlerts }) => {
                     className="flex items-center gap-2"
                   >
                     <span className="text-xs font-medium">Ver Alertas</span>
-                    {userAlerts.length > 0 && (
+                    {userAlerts && userAlerts.length > 0 && (
                       <span className="inline-flex items-center rounded-full bg-primary px-2.5 py-0.5 text-xs font-medium text-primary-foreground animate-pulse">
                         {userAlerts.length}
                       </span>
@@ -143,26 +156,13 @@ const Sidebar = ({ setSelectedContent, refreshAlerts, userAlerts }) => {
               <AlertsDrawer
                 isOpen={alertsDrawerOpen}
                 onClose={() => setAlertsDrawerOpen(false)}
-                alerts={userAlerts}
+                alerts={userAlerts || []}
                 onDeleteAlert={handleDeleteAlert}
               />
             </div>
           )}
         </div>
       </div>
-
-      {/* Modal de Configurações do Usuário */}
-      {settingsModalOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50">
-          <div className="max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <UserSettingsModalContent
-              user={user}
-              onClose={() => setSettingsModalOpen(false)}
-              onUpdate={handleUserUpdate}
-            />
-          </div>
-        </div>
-      )}
 
       {/* Bottom Section */}
       <div>
