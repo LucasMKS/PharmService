@@ -808,6 +808,28 @@ const PharmService = {
     }
   },
 
+  // Método para upload de avatar
+  uploadAvatar: async (userId, file) => {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await axiosInstance.post(
+        `/auth/upload-avatar/${userId}`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Erro ao fazer upload do avatar:", error);
+      throw error;
+    }
+  },
+
   exportClientReportPDF: async (params) => {
     try {
       const userData = getUserData();

@@ -24,6 +24,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import Sidebar from "@/components/layout/Sidebar";
 import { useAuth } from "@/hooks/useAuth";
+import AvatarUpload from "@/components/ui/avatar-upload";
 
 const SettingsPage = () => {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
@@ -32,6 +33,7 @@ const SettingsPage = () => {
   const [userData, setUserData] = useState(null);
   const [message, setMessage] = useState({ type: "", text: "" });
   const [currentContent, setCurrentContent] = useState("Configurações");
+  const [avatarUrl, setAvatarUrl] = useState(null);
   const router = useRouter();
   const { toast } = useToast();
   const { user: authUser } = useAuth();
@@ -62,6 +64,7 @@ const SettingsPage = () => {
       return;
     }
     setUserData(user);
+    setAvatarUrl(user.avatarUrl || null);
     setValue("name", user.name || "");
     setValue("email", user.email || "");
   }, [router, setValue]);
@@ -73,6 +76,17 @@ const SettingsPage = () => {
 
   const clearMessage = () => {
     setMessage({ type: "", text: "" });
+  };
+
+  const handleAvatarChange = (newAvatarUrl) => {
+    setAvatarUrl(newAvatarUrl);
+
+    // Atualizar dados do usuário no sessionStorage
+    if (userData) {
+      const updatedUserData = { ...userData, avatarUrl: newAvatarUrl };
+      sessionStorage.setItem("user", JSON.stringify(updatedUserData));
+      setUserData(updatedUserData);
+    }
   };
 
   const handleContentChange = (title) => {
@@ -221,6 +235,25 @@ const SettingsPage = () => {
 
           {/* Form */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Avatar */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FiUser className="w-5 h-5 text-primary" />
+                  Foto do Perfil
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <AvatarUpload
+                  currentAvatarUrl={avatarUrl}
+                  onAvatarChange={handleAvatarChange}
+                  userId={userData?.userId}
+                  userName={userData?.name}
+                  size="xl"
+                />
+              </CardContent>
+            </Card>
+
             {/* Informações Pessoais */}
             <Card>
               <CardHeader>

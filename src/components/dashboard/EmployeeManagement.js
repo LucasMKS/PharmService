@@ -96,9 +96,26 @@ const EmployeeManagement = () => {
   const loadEmployees = async () => {
     try {
       setLoading(true);
-      const response = await PharmService.getPharmacyEmployees(pharmacyId);
+      console.log("Carregando funcionários para pharmacyId:", pharmacyId);
+      console.log("User role:", userRole);
+
+      let response;
+      if (userRole === "ADMIN") {
+        // Admin pode ver todos os funcionários de todas as farmácias
+        response = await PharmService.getAllEmployees();
+      } else if (pharmacyId) {
+        // Gerente vê funcionários da própria farmácia
+        response = await PharmService.getPharmacyEmployees(pharmacyId);
+      } else {
+        console.error("pharmacyId não encontrado para usuário não-admin");
+        setError("ID da farmácia não encontrado");
+        return;
+      }
+
+      console.log("Resposta dos funcionários:", response);
       setEmployees(response);
     } catch (error) {
+      console.error("Erro ao carregar funcionários:", error);
       setError(error.message);
       toast({
         title: "Erro",
@@ -111,13 +128,26 @@ const EmployeeManagement = () => {
   };
 
   useEffect(() => {
-    if (pharmacyId) {
+    // Para admin, carrega sempre. Para outros, só se tiver pharmacyId
+    if (userRole === "ADMIN" || pharmacyId) {
       loadEmployees();
     }
-  }, [pharmacyId]);
+  }, [pharmacyId, userRole]);
 
   const handleAddEmployee = async () => {
     try {
+      if (userRole === "ADMIN") {
+        // Admin precisa especificar a farmácia
+        // Por enquanto, vamos mostrar um erro
+        toast({
+          title: "Erro",
+          description:
+            "Admin precisa especificar a farmácia para adicionar funcionário",
+          variant: "destructive",
+        });
+        return;
+      }
+
       await PharmService.addEmployeeToPharmacy(pharmacyId, {
         email: newEmployeeEmail,
       });
@@ -140,6 +170,18 @@ const EmployeeManagement = () => {
 
   const handleRemoveEmployee = async () => {
     try {
+      if (userRole === "ADMIN") {
+        // Admin precisa especificar a farmácia
+        // Por enquanto, vamos mostrar um erro
+        toast({
+          title: "Erro",
+          description:
+            "Admin precisa especificar a farmácia para remover funcionário",
+          variant: "destructive",
+        });
+        return;
+      }
+
       await PharmService.removeEmployeeFromPharmacy(
         pharmacyId,
         selectedEmployee.id
@@ -163,6 +205,18 @@ const EmployeeManagement = () => {
 
   const handlePromoteEmployee = async (employeeId) => {
     try {
+      if (userRole === "ADMIN") {
+        // Admin precisa especificar a farmácia
+        // Por enquanto, vamos mostrar um erro
+        toast({
+          title: "Erro",
+          description:
+            "Admin precisa especificar a farmácia para promover funcionário",
+          variant: "destructive",
+        });
+        return;
+      }
+
       await PharmService.promoteEmployeeToManager(pharmacyId, employeeId);
       toast({
         title: "Sucesso",
@@ -184,9 +238,9 @@ const EmployeeManagement = () => {
     if (userRole === "GERENTE" && employee.id === currentUserId) {
       return false;
     }
-    // Admin pode remover qualquer funcionário
+    // Admin pode remover qualquer funcionário, mas precisa especificar farmácia
     if (userRole === "ADMIN") {
-      return true;
+      return false; // Por enquanto, desabilitado para admin
     }
     // Gerente só pode remover funcionários da própria farmácia (já validado no backend)
     return true;
@@ -194,6 +248,9 @@ const EmployeeManagement = () => {
 
   const canPromoteEmployee = (employee) => {
     // Só pode promover funcionários com role FARMACIA
+    if (userRole === "ADMIN") {
+      return false; // Por enquanto, desabilitado para admin
+    }
     return employee.roles?.includes("FARMACIA");
   };
 
@@ -312,16 +369,20 @@ const EmployeeManagement = () => {
               <h2 className="text-2xl font-bold text-foreground">
                 Gestão de Funcionários
               </h2>
-              <Button
-                onClick={() => setIsAddDialogOpen(true)}
-                className="flex items-center gap-2"
-              >
-                <FiUserPlus className="w-4 h-4" />
-                Adicionar Funcionário
-              </Button>
+              {userRole !== "ADMIN" && (
+                <Button
+                  onClick={() => setIsAddDialogOpen(true)}
+                  className="flex items-center gap-2"
+                >
+                  <FiUserPlus className="w-4 h-4" />
+                  Adicionar Funcionário
+                </Button>
+              )}
             </div>
             <p className="text-sm text-muted-foreground mt-1">
-              Gerencie os funcionários da sua farmácia
+              {userRole === "ADMIN"
+                ? "Visualize todos os funcionários do sistema"
+                : "Gerencie os funcionários da sua farmácia"}
             </p>
           </div>
 

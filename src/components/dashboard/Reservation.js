@@ -8,6 +8,8 @@ import {
   FiEye,
 } from "react-icons/fi";
 import PharmService from "../services/PharmService";
+import { useLoading } from "@/hooks/useLoading";
+import { LoadingWrapper, DataLoader } from "@/components/ui/loading";
 import {
   Dialog,
   DialogContent,
@@ -65,7 +67,6 @@ const StatusBadge = ({ status }) => {
 
 const Reservation = () => {
   const [reservations, setReservations] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [manageModalOpen, setManageModalOpen] = useState(false);
   const [selectedReservation, setSelectedReservation] = useState(null);
@@ -74,6 +75,11 @@ const Reservation = () => {
   const [cancellingReservations, setCancellingReservations] = useState(
     new Set()
   );
+
+  // Usando o hook personalizado para gerenciar loading
+  const { isDataLoading, withDataLoading } = useLoading({
+    initialDataLoading: true,
+  });
 
   // Estados do TanStack Table
   const [columnFilters, setColumnFilters] = useState([]);
@@ -99,24 +105,23 @@ const Reservation = () => {
   };
 
   const fetchReservations = async () => {
-    try {
-      setLoading(true);
-      console.log("Buscando reservas...");
-      let response;
-      if (Array.isArray(roles) && roles.includes("CLIENTE")) {
-        response = await PharmService.getReservationsByUser();
-      } else {
-        response = await PharmService.getAllReservations();
+    await withDataLoading(async () => {
+      try {
+        console.log("Buscando reservas...");
+        let response;
+        if (Array.isArray(roles) && roles.includes("CLIENTE")) {
+          response = await PharmService.getReservationsByUser();
+        } else {
+          response = await PharmService.getAllReservations();
+        }
+        console.log("Resposta da API:", response);
+        setReservations(Array.isArray(response) ? response : []);
+      } catch (error) {
+        console.error("Erro detalhado ao carregar reservas:", error);
+        setError("Erro ao carregar reservas");
+        showToast("Erro ao carregar reservas", "error");
       }
-      console.log("Resposta da API:", response);
-      setReservations(Array.isArray(response) ? response : []);
-    } catch (error) {
-      console.error("Erro detalhado ao carregar reservas:", error);
-      setError("Erro ao carregar reservas");
-      showToast("Erro ao carregar reservas", "error");
-    } finally {
-      setLoading(false);
-    }
+    });
   };
 
   useEffect(() => {
@@ -363,20 +368,13 @@ const Reservation = () => {
     },
   });
 
-  if (loading) {
-    return (
-      <div className="bg-background min-h-screen flex items-center justify-center p-6">
-        <div className="text-center">
-          <div className="loading loading-ring loading-lg text-primary"></div>
-          <p className="mt-4 text-muted-foreground">Carregando reservas...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="bg-background min-h-screen flex items-center justify-center p-6">
-      <div className="w-full max-w-6xl shadow-lg border border-border rounded-lg overflow-hidden">
+    <LoadingWrapper 
+      isLoading={isDataLoading} 
+      loadingComponent={<DataLoader message="Carregando reservas..." />}
+    >
+      <div className="bg-background min-h-screen flex items-center justify-center p-6">
+        <div className="w-full max-w-6xl shadow-lg border border-border rounded-lg overflow-hidden">
         <div className="divide-y divide-border">
           <div className="py-3 px-4 bg-muted/50">
             <h2 className="text-2xl font-bold text-foreground">
@@ -470,6 +468,7 @@ const Reservation = () => {
             </div>
           </div>
         </div>
+        </div>
       </div>
 
       {toast.show && (
@@ -524,7 +523,7 @@ const Reservation = () => {
           />
         </DialogContent>
       </Dialog>
-    </div>
+    </LoadingWrapper>
   );
 };
 

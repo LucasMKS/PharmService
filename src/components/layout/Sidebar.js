@@ -90,16 +90,15 @@ const Sidebar = ({
             open={open}
           />
 
-          {Array.isArray(roles) &&
-            (roles.includes("GERENTE") || roles.includes("ADMIN")) && (
-              <Option
-                Icon={FiMonitor}
-                title="Funcionarios"
-                selected={selected}
-                setSelected={handleOptionSelect}
-                open={open}
-              />
-            )}
+          {Array.isArray(roles) && roles.includes("GERENTE") && (
+            <Option
+              Icon={FiMonitor}
+              title="Funcionarios"
+              selected={selected}
+              setSelected={handleOptionSelect}
+              open={open}
+            />
+          )}
 
           {Array.isArray(roles) && roles.includes("GERENTE") && (
             <Option
@@ -225,7 +224,7 @@ const TitleSection = ({ open, user, onSettingsClick }) => {
     <div className="mb-3 border-b border-border pb-3">
       <div className="flex cursor-pointer items-center justify-between rounded-md transition-colors hover:bg-accent hover:text-accent-foreground p-2">
         <div className="flex items-center gap-2">
-          <Logo />
+          <Logo user={user} />
           {open && (
             <motion.div
               initial={{ opacity: 0, y: 12 }}
@@ -262,10 +261,34 @@ const TitleSection = ({ open, user, onSettingsClick }) => {
   );
 };
 
-const Logo = () => {
+const Logo = ({ user }) => {
+  const getInitials = (name) => {
+    if (!name) return "P";
+    return name
+      .split(" ")
+      .map((word) => word.charAt(0))
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  // Se o usuário tem avatar, mostrar o avatar
+  if (user?.avatarUrl) {
+    return (
+      <div className="h-10 w-10 rounded-lg overflow-hidden">
+        <img
+          src={user.avatarUrl}
+          alt={user.name || "Avatar"}
+          className="w-full h-full object-cover"
+        />
+      </div>
+    );
+  }
+
+  // Caso contrário, mostrar as iniciais
   return (
     <div className="grid h-10 w-10 place-content-center rounded-lg bg-primary text-primary-foreground">
-      <span className="text-lg font-bold">P</span>
+      <span className="text-lg font-bold">{getInitials(user?.name)}</span>
     </div>
   );
 };

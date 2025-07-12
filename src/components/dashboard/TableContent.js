@@ -3,6 +3,8 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useForm } from "react-hook-form";
 
 import PharmService from "../services/PharmService";
+import { useLoading } from "@/hooks/useLoading";
+import { LoadingWrapper, DataLoader } from "@/components/ui/loading";
 
 import AddMedication from "../modals/AddMedication";
 import NProgress from "nprogress";
@@ -72,6 +74,11 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
   const [modalSize, setModalSize] = useState("");
   const [reservationLoading, setReservationLoading] = useState(false);
 
+  // Usando o hook personalizado para gerenciar loading
+  const { isDataLoading, withDataLoading } = useLoading({
+    initialDataLoading: true,
+  });
+
   // Estados para os dados dos modais específicos
   // (Mantidos, pois podem ser úteis para re-renderizações ou para passar data downstream)
   const [currentPharmacy, setCurrentPharmacy] = useState(null);
@@ -124,48 +131,50 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
     reset(); // Resetar o formulário de edição, se houver
   }, [reset]);
 
-  // Busca de medicamentos (DEVE VIR ANTES DAS FUNÇÕES QUE A CHAMAM)
+  // Busca de medicamentos usando o hook de loading
   const fetchMedications = useCallback(async () => {
-    try {
-      setError(null);
-      NProgress.start();
+    await withDataLoading(async () => {
+      try {
+        setError(null);
+        NProgress.start();
 
-      let response;
-      if (Array.isArray(roles) && roles.includes("CLIENTE")) {
-        // Cliente pode ver todos os medicamentos
-        response = await PharmService.getAllMedicines();
-      } else if (
-        Array.isArray(roles) &&
-        (roles.includes("GERENTE") || roles.includes("FARMACIA"))
-      ) {
-        // Gerente e Funcionário só podem ver medicamentos da própria farmácia
-        // O backend já filtra automaticamente baseado no userId
-        response = await PharmService.getAllMedicines();
-      } else if (roles === "ADMIN") {
-        // Admin pode ver todos os medicamentos
-        response = await PharmService.getAllMedicines();
-      } else {
-        // Fallback para outros casos
-        response = await PharmService.getAllMedicines();
+        let response;
+        if (Array.isArray(roles) && roles.includes("CLIENTE")) {
+          // Cliente pode ver todos os medicamentos
+          response = await PharmService.getAllMedicines();
+        } else if (
+          Array.isArray(roles) &&
+          (roles.includes("GERENTE") || roles.includes("FARMACIA"))
+        ) {
+          // Gerente e Funcionário só podem ver medicamentos da própria farmácia
+          // O backend já filtra automaticamente baseado no userId
+          response = await PharmService.getAllMedicines();
+        } else if (roles === "ADMIN") {
+          // Admin pode ver todos os medicamentos
+          response = await PharmService.getAllMedicines();
+        } else {
+          // Fallback para outros casos
+          response = await PharmService.getAllMedicines();
+        }
+
+        const data = Array.isArray(response)
+          ? response
+          : response && Array.isArray(response.data)
+          ? response.data
+          : [];
+
+        setMedications(data);
+      } catch (err) {
+        const errorMsg =
+          err.response?.data?.error || "Falha ao carregar medicamentos";
+        setError(errorMsg);
+        setMedications([]);
+        showToast(errorMsg, "error");
+      } finally {
+        NProgress.done();
       }
-
-      const data = Array.isArray(response)
-        ? response
-        : response && Array.isArray(response.data)
-        ? response.data
-        : [];
-
-      setMedications(data);
-    } catch (err) {
-      const errorMsg =
-        err.response?.data?.error || "Falha ao carregar medicamentos";
-      setError(errorMsg);
-      setMedications([]);
-      showToast(errorMsg, "error");
-    } finally {
-      NProgress.done();
-    }
-  }, [roles, pharmacyId, showToast]);
+    });
+  }, [roles, pharmacyId, showToast, withDataLoading]);
 
   // Buscar reservas pendentes do usuário (apenas para clientes)
   const fetchPendingReservations = useCallback(async () => {
@@ -610,198 +619,209 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
   );
 
   return (
-    <div className="bg-background min-h-screen flex items-center justify-center p-6">
-      <div className="w-full max-w-6xl shadow-lg border border-border rounded-lg overflow-hidden">
-        <div className="divide-y divide-border">
-          <div className="py-3 px-4 bg-muted/50 flex flex-col md:flex-row gap-4">
-            <div className="flex-1 flex flex-col md:flex-row gap-2">
-              {/* Campo de busca global */}
-              <div className="relative flex-1">
-                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground z-10" />
-                <Input
-                  type="text"
-                  placeholder="Busca por medicamentos ou farmácias"
-                  value={globalFilter ?? ""}
-                  onChange={(e) => setGlobalFilter(e.target.value)}
-                  className="pl-9"
-                />
+    <LoadingWrapper
+      isLoading={isDataLoading}
+      loadingComponent={<DataLoader message="Carregando medicamentos..." />}
+    >
+      <div className="bg-background min-h-screen flex items-center justify-center p-6">
+        <div className="w-full max-w-6xl shadow-lg border border-border rounded-lg overflow-hidden">
+          <div className="divide-y divide-border">
+            <div className="py-3 px-4 bg-muted/50 flex flex-col md:flex-row gap-4">
+              <div className="flex-1 flex flex-col md:flex-row gap-2">
+                {/* Campo de busca global */}
+                <div className="relative flex-1">
+                  <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground z-10" />
+                  <Input
+                    type="text"
+                    placeholder="Busca por medicamentos ou farmácias"
+                    value={globalFilter ?? ""}
+                    onChange={(e) => setGlobalFilter(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+
+                {/* Filtros de seleção para categorias, formas de dosagem, classificações */}
+                <div className="flex gap-2 flex-1">
+                  <Select
+                    value={
+                      table.getColumn("category")?.getFilterValue() ?? "all"
+                    }
+                    onValueChange={(value) =>
+                      table
+                        .getColumn("category")
+                        ?.setFilterValue(value === "all" ? "" : value)
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Todas Categorias" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas Categorias</SelectItem>
+                      {getUniqueOptions("category").map((option) => (
+                        <SelectItem key={option} value={option}>
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select
+                    value={
+                      table.getColumn("dosageForm")?.getFilterValue() ?? "all"
+                    }
+                    onValueChange={(value) =>
+                      table
+                        .getColumn("dosageForm")
+                        ?.setFilterValue(value === "all" ? "" : value)
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Todas Formas" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas Formas</SelectItem>
+                      {getUniqueOptions("dosageForm").map((option) => (
+                        <SelectItem key={option} value={option}>
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <Select
+                    value={
+                      table.getColumn("classification")?.getFilterValue() ??
+                      "all"
+                    }
+                    onValueChange={(value) =>
+                      table
+                        .getColumn("classification")
+                        ?.setFilterValue(value === "all" ? "" : value)
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Todas Classificações" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas Classificações</SelectItem>
+                      {getUniqueOptions("classification").map((option) => (
+                        <SelectItem key={option} value={option}>
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
-              {/* Filtros de seleção para categorias, formas de dosagem, classificações */}
-              <div className="flex gap-2 flex-1">
-                <Select
-                  value={table.getColumn("category")?.getFilterValue() ?? "all"}
-                  onValueChange={(value) =>
-                    table
-                      .getColumn("category")
-                      ?.setFilterValue(value === "all" ? "" : value)
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Todas Categorias" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas Categorias</SelectItem>
-                    {getUniqueOptions("category").map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              {(!Array.isArray(roles) || !roles.includes("CLIENTE")) && (
+                <div className="flex gap-2">
+                  <Button
+                    onClick={onAddClick}
+                    aria-label="Adicionar medicamento"
+                  >
+                    <FiPlus className="text-lg" />
+                    <span className="hidden sm:inline">Adicionar</span>
+                  </Button>
 
-                <Select
-                  value={
-                    table.getColumn("dosageForm")?.getFilterValue() ?? "all"
-                  }
-                  onValueChange={(value) =>
-                    table
-                      .getColumn("dosageForm")
-                      ?.setFilterValue(value === "all" ? "" : value)
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Todas Formas" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas Formas</SelectItem>
-                    {getUniqueOptions("dosageForm").map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                <Select
-                  value={
-                    table.getColumn("classification")?.getFilterValue() ?? "all"
-                  }
-                  onValueChange={(value) =>
-                    table
-                      .getColumn("classification")
-                      ?.setFilterValue(value === "all" ? "" : value)
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Todas Classificações" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas Classificações</SelectItem>
-                    {getUniqueOptions("classification").map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                  {(!Array.isArray(roles) || !roles.includes("GERENTE")) && (
+                    <Button
+                      onClick={onImportClick}
+                      variant="outline"
+                      aria-label="Importar medicamentos"
+                    >
+                      <FiUploadCloud className="text-lg" />
+                      <span className="hidden sm:inline">Importar</span>
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
 
-            {(!Array.isArray(roles) || !roles.includes("CLIENTE")) && (
-              <div className="flex gap-2">
-                <Button onClick={onAddClick} aria-label="Adicionar medicamento">
-                  <FiPlus className="text-lg" />
-                  <span className="hidden sm:inline">Adicionar</span>
-                </Button>
-
-                {(!Array.isArray(roles) || !roles.includes("GERENTE")) && (
-                  <Button
-                    onClick={onImportClick}
-                    variant="outline"
-                    aria-label="Importar medicamentos"
-                  >
-                    <FiUploadCloud className="text-lg" />
-                    <span className="hidden sm:inline">Importar</span>
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-border">
-              <thead className="bg-muted/50">
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <tr key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <th
-                        key={header.id}
-                        colSpan={header.colSpan}
-                        className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 cursor-pointer"
-                        onClick={header.column.getToggleSortingHandler()}
-                      >
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
-                        {{
-                          asc: " 🔼",
-                          desc: " 🔽",
-                        }[header.column.getIsSorted()] ?? null}
-                      </th>
-                    ))}
-                  </tr>
-                ))}
-              </thead>
-              <tbody className="bg-card text-card-foreground divide-y divide-border">
-                {table.getRowModel().rows.length > 0 ? (
-                  table.getRowModel().rows.map((row) => (
-                    <tr
-                      key={row.id}
-                      className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <td
-                          key={cell.id}
-                          className="p-4 align-middle [&:has([role=checkbox])]:pr-0"
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-border">
+                <thead className="bg-muted/50">
+                  {table.getHeaderGroups().map((headerGroup) => (
+                    <tr key={headerGroup.id}>
+                      {headerGroup.headers.map((header) => (
+                        <th
+                          key={header.id}
+                          colSpan={header.colSpan}
+                          className="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 cursor-pointer"
+                          onClick={header.column.getToggleSortingHandler()}
                         >
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
-                        </td>
+                          {header.isPlaceholder
+                            ? null
+                            : flexRender(
+                                header.column.columnDef.header,
+                                header.getContext()
+                              )}
+                          {{
+                            asc: " 🔼",
+                            desc: " 🔽",
+                          }[header.column.getIsSorted()] ?? null}
+                        </th>
                       ))}
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td
-                      colSpan={columns.length}
-                      className="text-center py-4 text-muted-foreground"
-                    >
-                      {error ? error : "Nenhum dado encontrado"}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  ))}
+                </thead>
+                <tbody className="bg-card text-card-foreground divide-y divide-border">
+                  {table.getRowModel().rows.length > 0 ? (
+                    table.getRowModel().rows.map((row) => (
+                      <tr
+                        key={row.id}
+                        className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
+                      >
+                        {row.getVisibleCells().map((cell) => (
+                          <td
+                            key={cell.id}
+                            className="p-4 align-middle [&:has([role=checkbox])]:pr-0"
+                          >
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext()
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan={columns.length}
+                        className="text-center py-4 text-muted-foreground"
+                      >
+                        {error ? error : "Nenhum dado encontrado"}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
 
-            {/* Controles de Paginação */}
-            <div className="py-3 px-4 flex justify-between items-center bg-muted/50 text-muted-foreground rounded-b-lg">
-              <Button
-                onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage()}
-                variant="outline"
-              >
-                Anterior
-              </Button>
-              <span className="text-sm">
-                Página{" "}
-                <strong>
-                  {table.getState().pagination.pageIndex + 1} de{" "}
-                  {table.getPageCount()}
-                </strong>
-              </span>
-              <Button
-                onClick={() => table.nextPage()}
-                disabled={!table.getCanNextPage()}
-                variant="outline"
-              >
-                Próxima
-              </Button>
+              {/* Controles de Paginação */}
+              <div className="py-3 px-4 flex justify-between items-center bg-muted/50 text-muted-foreground rounded-b-lg">
+                <Button
+                  onClick={() => table.previousPage()}
+                  disabled={!table.getCanPreviousPage()}
+                  variant="outline"
+                >
+                  Anterior
+                </Button>
+                <span className="text-sm">
+                  Página{" "}
+                  <strong>
+                    {table.getState().pagination.pageIndex + 1} de{" "}
+                    {table.getPageCount()}
+                  </strong>
+                </span>
+                <Button
+                  onClick={() => table.nextPage()}
+                  disabled={!table.getCanNextPage()}
+                  variant="outline"
+                >
+                  Próxima
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -840,7 +860,7 @@ const TableContent = ({ roles, pharmacyId, refreshAlerts }) => {
           {modalContent}
         </DialogContent>
       </Dialog>
-    </div>
+    </LoadingWrapper>
   );
 };
 

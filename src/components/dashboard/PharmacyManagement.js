@@ -107,14 +107,27 @@ const PharmacyManagement = () => {
     loadPharmacies();
   }, []);
 
-  const handleCreatePharmacy = async (pharmacyData) => {
+  const handleCreatePharmacy = async (e) => {
+    e.preventDefault();
     try {
-      await PharmService.registerPharmacy(pharmacyData);
+      await PharmService.registerPharmacy(formData);
       toast({
         title: "Sucesso",
         description: "Farmácia criada com sucesso!",
       });
       setShowCreateModal(false);
+      // Reset form data
+      setFormData({
+        name: "",
+        address: "",
+        number: "",
+        neighborhood: "",
+        city: "",
+        state: "",
+        zipCode: "",
+        phone: "",
+        userEmail: "",
+      });
       loadPharmacies();
     } catch (error) {
       toast({
@@ -489,9 +502,13 @@ const PharmacyManagement = () => {
             </DialogDescription>
           </DialogHeader>
           <CreatePharmacyModalContent
-            onConfirm={handleCreatePharmacy}
+            isOpen={showCreateModal}
+            formData={formData}
+            setFormData={setFormData}
             onCancel={() => setShowCreateModal(false)}
+            onSubmit={handleCreatePharmacy}
             loading={false}
+            error={null}
           />
         </DialogContent>
       </Dialog>

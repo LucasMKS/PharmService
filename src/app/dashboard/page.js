@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { getSessionData } from "@/hooks/useSessionStorage";
+import { useLoading } from "@/hooks/useLoading";
 import PharmService from "@/components/services/PharmService";
 import Sidebar from "@/components/layout/Sidebar";
 import TableContent from "@/components/dashboard/TableContent";
@@ -10,21 +12,11 @@ import Reservation from "@/components/dashboard/Reservation";
 import ExportReports from "@/components/dashboard/ExportReports";
 import PharmacyManagement from "@/components/dashboard/PharmacyManagement";
 import EmployeeManagement from "@/components/dashboard/EmployeeManagement";
-import { ClipLoader } from "react-spinners";
-
-// Componente de carregamento global
-const GlobalLoader = () => (
-  <div className="flex justify-center items-center h-screen bg-background">
-    <ClipLoader color="hsl(var(--primary))" size={40} />
-  </div>
-);
-
-// Adicione um fallback de carregamento
-const LoadingFallback = () => (
-  <div className="flex justify-center items-center h-32">
-    <ClipLoader color="hsl(var(--primary))" size={40} />
-  </div>
-);
+import {
+  PageLoader,
+  ContentLoader,
+  SuspenseLoader,
+} from "@/components/ui/loading";
 
 const CONTENT_MAP = {
   Dashboard: TableContent,
@@ -43,7 +35,19 @@ export const Dashboard = () => {
   const pharmacyId = user?.pharmacyId || sessionData.pharmacyId;
 
   const [userAlerts, setUserAlerts] = useState([]);
-  const [isPageLoading, setIsPageLoading] = useState(true);
+
+  // Usando o hook personalizado para gerenciar loading
+  const {
+    isPageLoading,
+    isContentLoading,
+    setIsPageLoading,
+    withPageLoading,
+    withContentLoading,
+  } = useLoading({
+    initialPageLoading: true,
+    initialContentLoading: false,
+  });
+
   // Determinar o conteúdo inicial baseado nos parâmetros da URL
   const getInitialContent = () => {
     const contentParam = searchParams.get("content");
@@ -53,7 +57,6 @@ export const Dashboard = () => {
   };
 
   const [currentContent, setCurrentContent] = useState(getInitialContent());
-  const [isContentLoading, setIsContentLoading] = useState(false);
 
   // Memoize a função de refresh para evitar recriações desnecessárias
   const refreshAlerts = useCallback(async () => {
@@ -67,41 +70,39 @@ export const Dashboard = () => {
     }
   }, []);
 
-  // Carregamento inicial
+  // Carregamento inicial usando o hook
   useEffect(() => {
     const initializeDashboard = async () => {
       if (!user) return;
 
-      try {
+      await withPageLoading(async () => {
         await Promise.all([
           refreshAlerts(),
           new Promise((resolve) => setTimeout(resolve, 500)), // Simula carregamento
         ]);
-      } finally {
-        setIsPageLoading(false);
-      }
+      });
     };
 
     initializeDashboard();
-  }, [user, refreshAlerts]);
+  }, [user, refreshAlerts, withPageLoading]);
 
-  // Manipulador de mudança de conteúdo
-  const handleContentChange = useCallback(async (title) => {
-    setIsContentLoading(true);
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      setCurrentContent(title);
-    } finally {
-      setIsContentLoading(false);
-    }
-  }, []);
+  // Manipulador de mudança de conteúdo usando o hook
+  const handleContentChange = useCallback(
+    async (title) => {
+      await withContentLoading(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        setCurrentContent(title);
+      });
+    },
+    [withContentLoading]
+  );
 
   // Modifique a função renderContent
   const renderContent = useCallback(() => {
     const ContentComponent = CONTENT_MAP[currentContent];
 
     return (
-      <Suspense fallback={<LoadingFallback />}>
+      <Suspense fallback={<SuspenseLoader />}>
         {currentContent === "Dashboard" ? (
           <ContentComponent
             roles={roles}
@@ -116,7 +117,7 @@ export const Dashboard = () => {
   }, [currentContent, roles, pharmacyId, refreshAlerts]);
 
   if (isPageLoading || !user) {
-    return <GlobalLoader />;
+    return <PageLoader message="Carregando dashboard..." />;
   }
 
   return (
@@ -132,9 +133,7 @@ export const Dashboard = () => {
 
       <main className="flex-1">
         {isContentLoading ? (
-          <div className="flex items-center justify-center h-full bg-background">
-            <ClipLoader color="hsl(var(--primary))" size={40} />
-          </div>
+          <ContentLoader message="Carregando conteúdo..." />
         ) : (
           renderContent()
         )}
