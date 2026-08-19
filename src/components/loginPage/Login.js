@@ -65,7 +65,8 @@ export default function LoginPage() {
             alt="Night"
             src="/images/login/img4.jpg"
             className="absolute inset-0 h-full w-full object-cover opacity-80"
-            layout="fill"
+            fill
+            priority
           />
 
           <div className="hidden lg:relative lg:block lg:p-12">

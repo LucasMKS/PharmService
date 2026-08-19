@@ -275,11 +275,14 @@ const Logo = ({ user }) => {
   // Se o usuário tem avatar, mostrar o avatar
   if (user?.avatarUrl) {
     return (
-      <div className="h-10 w-10 rounded-lg overflow-hidden">
-        <img
+      <div className="h-10 w-10 rounded-lg overflow-hidden relative">
+        <Image
           src={user.avatarUrl}
           alt={user.name || "Avatar"}
+          width={40}
+          height={40}
           className="w-full h-full object-cover"
+          unoptimized
         />
       </div>
     );
